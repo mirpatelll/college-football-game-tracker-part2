@@ -5,9 +5,10 @@
 // LOCAL: Flask running on your computer
 // const API_BASE = "http://127.0.0.1:5001/api";
 
-// DEPLOYED: change this later to your deployed backend URL (Render/Fly/etc.)
+
 // Example: const API_BASE = "https://your-backend.onrender.com/api";
-const API_BASE = "http://127.0.0.1:5001/api";
+const API_BASE = "https://college-football-game-tracker-part2.onrender.com/api";
+
 
 const PAGE_SIZE = 10;
 
