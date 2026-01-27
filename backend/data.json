@@ -1,0 +1,312 @@
+[
+  {
+    "id": "5f5e0152-0d53-4bf9-be73-1a1dcdc7f207",
+    "team": "Clemson",
+    "opponent": "Georgia Tech",
+    "homeAway": "Home",
+    "week": 1,
+    "pointsFor": 31,
+    "pointsAgainst": 17,
+    "result": "W"
+  },
+  {
+    "id": "90791728-a6b7-4b87-8301-f8a0b419d7af",
+    "team": "Clemson",
+    "opponent": "Florida State",
+    "homeAway": "Away",
+    "week": 2,
+    "pointsFor": 24,
+    "pointsAgainst": 28,
+    "result": "L"
+  },
+  {
+    "id": "65a672d8-d66b-44b0-a3f7-1c401eb29933",
+    "team": "Alabama",
+    "opponent": "Auburn",
+    "homeAway": "Home",
+    "week": 3,
+    "pointsFor": 35,
+    "pointsAgainst": 14,
+    "result": "W"
+  },
+  {
+    "id": "8a38a3f3-2c18-40fd-9404-d0e35ca3fde0",
+    "team": "Georgia",
+    "opponent": "Florida",
+    "homeAway": "Home",
+    "week": 4,
+    "pointsFor": 29,
+    "pointsAgainst": 13,
+    "result": "W"
+  },
+  {
+    "id": "c6eb5204-cb3a-4453-a6cd-0524eebf33d9",
+    "team": "Michigan",
+    "opponent": "Ohio State",
+    "homeAway": "Home",
+    "week": 5,
+    "pointsFor": 27,
+    "pointsAgainst": 24,
+    "result": "W"
+  },
+  {
+    "id": "4db62c59-9fca-423b-a82d-7ad23223d1c8",
+    "team": "Usc",
+    "opponent": "Ucla",
+    "homeAway": "Home",
+    "week": 6,
+    "pointsFor": 24,
+    "pointsAgainst": 31,
+    "result": "L"
+  },
+  {
+    "id": "2192bcc6-bd8e-48a8-8e70-cea0a91a72cb",
+    "team": "Texas",
+    "opponent": "Oklahoma",
+    "homeAway": "Away",
+    "week": 7,
+    "pointsFor": 38,
+    "pointsAgainst": 35,
+    "result": "W"
+  },
+  {
+    "id": "5448c7e5-8135-48c4-92af-6751d6b38ec0",
+    "team": "Arizona",
+    "opponent": "Utah",
+    "homeAway": "Home",
+    "week": 8,
+    "pointsFor": 24,
+    "pointsAgainst": 21,
+    "result": "W"
+  },
+  {
+    "id": "dd7f5309-cfec-4c08-8616-7f93459a6482",
+    "team": "Oregon State",
+    "opponent": "Washington State",
+    "homeAway": "Home",
+    "week": 9,
+    "pointsFor": 21,
+    "pointsAgainst": 17,
+    "result": "W"
+  },
+  {
+    "id": "9f3ed696-c31f-4382-adbc-f39f007367e1",
+    "team": "Lsu",
+    "opponent": "Texas A&m",
+    "homeAway": "Away",
+    "week": 10,
+    "pointsFor": 28,
+    "pointsAgainst": 24,
+    "result": "W"
+  },
+  {
+    "id": "2428f513-40dd-4484-bc90-eb8e2bb1ec02",
+    "team": "Clemson",
+    "opponent": "Georgia Tech",
+    "homeAway": "Home",
+    "week": 11,
+    "pointsFor": 31,
+    "pointsAgainst": 17,
+    "result": "W"
+  },
+  {
+    "id": "f4b4e89a-d851-427c-8d60-00119af90e2a",
+    "team": "Clemson",
+    "opponent": "Florida State",
+    "homeAway": "Away",
+    "week": 12,
+    "pointsFor": 24,
+    "pointsAgainst": 28,
+    "result": "L"
+  },
+  {
+    "id": "d8993794-c3c0-4fd6-8c70-23f269f1e184",
+    "team": "Georgia",
+    "opponent": "Florida",
+    "homeAway": "Home",
+    "week": 2,
+    "pointsFor": 29,
+    "pointsAgainst": 13,
+    "result": "W"
+  },
+  {
+    "id": "959e56e7-62eb-42a5-8a65-fa00c4a745b6",
+    "team": "Michigan",
+    "opponent": "Ohio State",
+    "homeAway": "Home",
+    "week": 3,
+    "pointsFor": 27,
+    "pointsAgainst": 24,
+    "result": "W"
+  },
+  {
+    "id": "b712f731-648c-4def-823d-4d73b201cda9",
+    "team": "Usc",
+    "opponent": "Ucla",
+    "homeAway": "Home",
+    "week": 4,
+    "pointsFor": 24,
+    "pointsAgainst": 31,
+    "result": "L"
+  },
+  {
+    "id": "451205c3-a46d-4ce6-a903-c74214843257",
+    "team": "Texas",
+    "opponent": "Oklahoma",
+    "homeAway": "Away",
+    "week": 5,
+    "pointsFor": 38,
+    "pointsAgainst": 35,
+    "result": "W"
+  },
+  {
+    "id": "8e60f35d-f5cc-4d6c-9ea3-f9a2a5bbcc0c",
+    "team": "Arizona",
+    "opponent": "Utah",
+    "homeAway": "Home",
+    "week": 6,
+    "pointsFor": 24,
+    "pointsAgainst": 21,
+    "result": "W"
+  },
+  {
+    "id": "47d94f3f-daf1-46d5-99d3-975be4ab75b1",
+    "team": "Oregon State",
+    "opponent": "Washington State",
+    "homeAway": "Home",
+    "week": 7,
+    "pointsFor": 21,
+    "pointsAgainst": 17,
+    "result": "W"
+  },
+  {
+    "id": "bf16d56b-bafe-4339-955f-0a3900b2c1f5",
+    "team": "Lsu",
+    "opponent": "Texas A&m",
+    "homeAway": "Away",
+    "week": 8,
+    "pointsFor": 28,
+    "pointsAgainst": 24,
+    "result": "W"
+  },
+  {
+    "id": "da8b326e-61cb-49ed-b474-bcf41f62130d",
+    "team": "Clemson",
+    "opponent": "Georgia Tech",
+    "homeAway": "Home",
+    "week": 9,
+    "pointsFor": 31,
+    "pointsAgainst": 17,
+    "result": "W"
+  },
+  {
+    "id": "77d537fe-4920-456f-915d-a9eec49a959e",
+    "team": "Clemson",
+    "opponent": "Florida State",
+    "homeAway": "Away",
+    "week": 10,
+    "pointsFor": 24,
+    "pointsAgainst": 28,
+    "result": "L"
+  },
+  {
+    "id": "04bf33b5-5d8b-4934-9ff8-6c8f7f118b8a",
+    "team": "Alabama",
+    "opponent": "Auburn",
+    "homeAway": "Home",
+    "week": 11,
+    "pointsFor": 35,
+    "pointsAgainst": 14,
+    "result": "W"
+  },
+  {
+    "id": "2e99a1c4-7d83-4f4a-b19b-848137fa92db",
+    "team": "Georgia",
+    "opponent": "Florida",
+    "homeAway": "Home",
+    "week": 12,
+    "pointsFor": 29,
+    "pointsAgainst": 13,
+    "result": "W"
+  },
+  {
+    "id": "83ba7373-9099-448d-a32d-54920770d74e",
+    "team": "Michigan",
+    "opponent": "Ohio State",
+    "homeAway": "Home",
+    "week": 1,
+    "pointsFor": 27,
+    "pointsAgainst": 24,
+    "result": "W"
+  },
+  {
+    "id": "d00a1668-ead4-4ecf-a527-b53edd097158",
+    "team": "Usc",
+    "opponent": "Ucla",
+    "homeAway": "Home",
+    "week": 2,
+    "pointsFor": 24,
+    "pointsAgainst": 31,
+    "result": "L"
+  },
+  {
+    "id": "140ed596-f69c-45f9-9ab8-ef5a84b6d967",
+    "team": "Texas",
+    "opponent": "Oklahoma",
+    "homeAway": "Away",
+    "week": 3,
+    "pointsFor": 38,
+    "pointsAgainst": 35,
+    "result": "W"
+  },
+  {
+    "id": "3e444516-3f99-4066-9f83-0fe20b0664be",
+    "team": "Arizona",
+    "opponent": "Utah",
+    "homeAway": "Home",
+    "week": 4,
+    "pointsFor": 24,
+    "pointsAgainst": 21,
+    "result": "W"
+  },
+  {
+    "id": "bfbc7759-5c07-45d6-9b87-9e7e8c19462a",
+    "team": "Oregon State",
+    "opponent": "Washington State",
+    "homeAway": "Home",
+    "week": 5,
+    "pointsFor": 21,
+    "pointsAgainst": 17,
+    "result": "W"
+  },
+  {
+    "id": "0478b09f-d741-4dad-8962-fe5ed278c2e4",
+    "team": "Lsu",
+    "opponent": "Texas A&m",
+    "homeAway": "Away",
+    "week": 6,
+    "pointsFor": 28,
+    "pointsAgainst": 24,
+    "result": "W"
+  },
+  {
+    "id": "4691dede-afac-4849-bd9e-41c88f3916a3",
+    "team": "Alabama",
+    "opponent": "Auburn",
+    "homeAway": "Home",
+    "week": 1,
+    "pointsFor": 12,
+    "pointsAgainst": 2,
+    "result": "W"
+  },
+  {
+    "id": "c033729f-512d-4593-8ad6-43df9c07bcc8",
+    "team": "Clemson",
+    "opponent": "Lsu",
+    "homeAway": "Away",
+    "week": 1,
+    "pointsFor": 54,
+    "pointsAgainst": 24,
+    "result": "W"
+  }
+]
