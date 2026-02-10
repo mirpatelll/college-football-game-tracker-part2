@@ -1,125 +1,88 @@
-import os
-import psycopg2
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from urllib.parse import urlparse
-import uuid
+const API_URL = "https://college-football-game-tracker-part2-1.onrender.com/api";
 
-app = Flask(__name__)
-CORS(app)
+let currentPage = 1;
+let pageSize = parseInt(localStorage.getItem("pageSize")) || 10;
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+document.getElementById("pageSize").value = pageSize;
 
-url = urlparse(DATABASE_URL)
+async function loadGames(page = 1) {
+  currentPage = page;
 
-conn = psycopg2.connect(
-    dbname=url.path[1:],
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port
-)
+  const res = await fetch(`${API_URL}/games`);
+  const data = await res.json();
 
-def init_db():
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS games (
-            id TEXT PRIMARY KEY,
-            week INTEGER,
-            team TEXT,
-            opponent TEXT,
-            homeAway TEXT,
-            pointsFor INTEGER,
-            pointsAgainst INTEGER,
-            result TEXT
-        );
-    """)
-    conn.commit()
-    cur.close()
+  renderTable(data.items.slice((page-1)*pageSize, page*pageSize));
+  renderPagination(data.items.length);
+}
 
-init_db()
+function renderTable(games) {
+  const tbody = document.querySelector("tbody");
+  tbody.innerHTML = "";
 
-@app.route("/api/games", methods=["GET"])
-def get_games():
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM games ORDER BY week;")
-    rows = cur.fetchall()
-    cur.close()
+  games.forEach(g => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${g.week}</td>
+      <td>${g.team}</td>
+      <td>${g.opponent}</td>
+      <td>${g.homeAway}</td>
+      <td>${g.pointsFor}</td>
+      <td>${g.pointsAgainst}</td>
+      <td>${g.result}</td>
+      <td>
+        <button onclick="deleteGame('${g.id}')">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
-    games = []
-    for r in rows:
-        games.append({
-            "id": r[0],
-            "week": r[1],
-            "team": r[2],
-            "opponent": r[3],
-            "homeAway": r[4],
-            "pointsFor": r[5],
-            "pointsAgainst": r[6],
-            "result": r[7]
-        })
+function renderPagination(total) {
+  document.getElementById("pageInfo").innerText =
+    `Page ${currentPage} of ${Math.ceil(total/pageSize)}`;
+}
 
-    return jsonify({"items": games, "total": len(games)})
+async function deleteGame(id) {
+  if (!confirm("Delete this game?")) return;
 
-@app.route("/api/games", methods=["POST"])
-def add_game():
-    data = request.json
-    cur = conn.cursor()
+  await fetch(`${API_URL}/games/${id}`, { method: "DELETE" });
+  loadGames(currentPage);
+}
 
-    gid = str(uuid.uuid4())
+document.getElementById("saveBtn").addEventListener("click", async () => {
 
-    cur.execute("""
-        INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-    """, (
-        gid,
-        data["week"],
-        data["team"],
-        data["opponent"],
-        data["homeAway"],
-        data["pointsFor"],
-        data["pointsAgainst"],
-        data["result"]
-    ))
+  const game = {
+    week: parseInt(document.getElementById("week").value),
+    team: document.getElementById("team").value,
+    opponent: document.getElementById("opponent").value,
+    homeAway: document.getElementById("homeAway").value,
+    pointsFor: parseInt(document.getElementById("pf").value),
+    pointsAgainst: parseInt(document.getElementById("pa").value),
+    result: document.getElementById("result").value
+  };
 
-    conn.commit()
-    cur.close()
+  await fetch(`${API_URL}/games`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(game)
+  });
 
-    return jsonify({"id": gid})
+  alert("Saved!");
+  loadGames();
+});
 
-@app.route("/api/games/<id>", methods=["DELETE"])
-def delete_game(id):
-    cur = conn.cursor()
-    cur.execute("DELETE FROM games WHERE id=%s", (id,))
-    conn.commit()
-    cur.close()
-    return jsonify({"ok": True})
+document.getElementById("pageSize").addEventListener("change", e => {
+  pageSize = parseInt(e.target.value);
+  localStorage.setItem("pageSize", pageSize);
+  loadGames(1);
+});
 
-@app.route("/api/stats")
-def stats():
-    cur = conn.cursor()
+document.getElementById("prevBtn").onclick = () => {
+  if (currentPage > 1) loadGames(currentPage-1);
+};
 
-    cur.execute("SELECT COUNT(*), COALESCE(SUM(pointsFor),0) FROM games")
-    total, pf = cur.fetchone()
+document.getElementById("nextBtn").onclick = () => {
+  loadGames(currentPage+1);
+};
 
-    cur.execute("SELECT COUNT(*) FROM games WHERE result='W'")
-    wins = cur.fetchone()[0]
-
-    cur.execute("SELECT COUNT(*) FROM games WHERE result='L'")
-    losses = cur.fetchone()[0]
-
-    cur.close()
-
-    return jsonify({
-        "totalGames": total or 0,
-        "wins": wins,
-        "losses": losses,
-        "avgPF": (pf / total) if total else 0,
-        "highPFGame": None
-    })
-
-# -------------------------------
-# RENDER PORT FIX (IMPORTANT)
-# -------------------------------
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+loadGames();
