@@ -97,7 +97,8 @@ def delete_game(id):
 @app.route("/api/stats")
 def stats():
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*), SUM(pointsFor) FROM games")
+
+    cur.execute("SELECT COUNT(*), COALESCE(SUM(pointsFor),0) FROM games")
     total, pf = cur.fetchone()
 
     cur.execute("SELECT COUNT(*) FROM games WHERE result='W'")
@@ -116,5 +117,9 @@ def stats():
         "highPFGame": None
     })
 
+# -------------------------------
+# RENDER PORT FIX (IMPORTANT)
+# -------------------------------
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
