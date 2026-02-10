@@ -1,13 +1,9 @@
-/* 
-   CONFIG
-*/
+/* CONFIG */
 
-// Render backend (KEEP THIS)
 const API_BASE = "https://college-football-game-tracker-part2.onrender.com/api";
 
-/* =========================
-   DOM
-========================= */
+/* DOM */
+
 const tabs = document.querySelectorAll(".tab");
 const views = document.querySelectorAll(".view");
 
@@ -20,6 +16,7 @@ const listMsg = document.getElementById("listMsg");
 
 const searchInput = document.getElementById("searchInput");
 const filterResult = document.getElementById("filterResult");
+const pageSizeSelect = document.getElementById("pageSizeSelect");
 
 const gameForm = document.getElementById("gameForm");
 const formTitle = document.getElementById("formTitle");
@@ -35,14 +32,6 @@ const pointsFor = document.getElementById("pointsFor");
 const pointsAgainst = document.getElementById("pointsAgainst");
 const result = document.getElementById("result");
 
-const teamErr = document.getElementById("teamErr");
-const opponentErr = document.getElementById("opponentErr");
-const homeAwayErr = document.getElementById("homeAwayErr");
-const weekErr = document.getElementById("weekErr");
-const pointsForErr = document.getElementById("pointsForErr");
-const pointsAgainstErr = document.getElementById("pointsAgainstErr");
-const resultErr = document.getElementById("resultErr");
-
 const statTotalGames = document.getElementById("statTotalGames");
 const statWL = document.getElementById("statWL");
 const statAvgPF = document.getElementById("statAvgPF");
@@ -50,18 +39,27 @@ const statHighPF = document.getElementById("statHighPF");
 const statHighPFDetail = document.getElementById("statHighPFDetail");
 const statsMsg = document.getElementById("statsMsg");
 
-/* =========================
-   STATE
-========================= */
+/* STATE */
+
 let currentPage = 1;
 let totalRecords = 0;
 let lastQuery = "";
 let lastResultFilter = "ALL";
 let PAGE_SIZE = 10;
 
-/* =========================
-   HELPERS
-========================= */
+/* PAGE SIZE DROPDOWN FIX */
+
+if (pageSizeSelect) {
+  PAGE_SIZE = parseInt(pageSizeSelect.value);
+
+  pageSizeSelect.addEventListener("change", () => {
+    PAGE_SIZE = parseInt(pageSizeSelect.value);
+    loadPage(1);
+  });
+}
+
+/* HELPERS */
+
 function showView(viewId) {
   views.forEach(v => v.classList.toggle("active", v.id === viewId));
   tabs.forEach(t => t.classList.toggle("active", t.dataset.view === viewId));
@@ -71,110 +69,151 @@ function showView(viewId) {
 }
 
 function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  return String(str ?? "").replace(/[&<>"']/g, m =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m])
+  );
 }
 
 function titleCaseWords(s) {
-  return String(s ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
+  return String(s ?? "").split(/\s+/).map(w => w[0]?.toUpperCase() + w.slice(1).toLowerCase()).join(" ");
 }
 
-function clearErrors() {
-  [teamErr, opponentErr, homeAwayErr, weekErr, pointsForErr, pointsAgainstErr, resultErr]
-    .forEach(e => e.textContent = "");
-}
+/* API */
 
-/* =========================
-   API
-========================= */
 async function apiGet(url) {
   const res = await fetch(url);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || "Request failed");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
-async function apiSend(url, method, bodyObj) {
+async function apiSend(url, method, body) {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(bodyObj)
+    body: JSON.stringify(body)
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || "Request failed");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
-/* =========================
-   LIST + PAGING
-========================= */
+/* LIST */
+
 async function loadPage(page) {
   currentPage = page;
   listMsg.textContent = "Loading...";
 
   const params = new URLSearchParams({
     page: currentPage,
-    page_size: PAGE_SIZE
+    page_size: PAGE_SIZE,
+    q: lastQuery,
+    result: lastResultFilter === "ALL" ? "" : lastResultFilter
   });
 
-  if (lastQuery) params.set("q", lastQuery);
-  if (lastResultFilter !== "ALL") params.set("result", lastResultFilter);
+  const data = await apiGet(`${API_BASE}/games?${params}`);
 
-  try {
-    const data = await apiGet(`${API_BASE}/games?${params.toString()}`);
-    totalRecords = data.total;
-    renderTable(data.items);
-    updatePaging();
-    countLabel.textContent = `Showing ${data.items.length} of ${data.total}`;
-    listMsg.textContent = "";
-  } catch (err) {
-    listMsg.textContent = err.message;
-  }
+  totalRecords = data.total;
+
+  gamesTbody.innerHTML = "";
+
+  data.items.forEach(g => {
+    gamesTbody.innerHTML += `
+      <tr>
+        <td>${g.week}</td>
+        <td>${g.team}</td>
+        <td>${g.opponent}</td>
+        <td>${g.homeAway}</td>
+        <td>${g.pointsFor}</td>
+        <td>${g.pointsAgainst}</td>
+        <td><b>${g.result}</b></td>
+        <td>
+          <button data-action="edit" data-id="${g.id}">Edit</button>
+          <button data-action="delete" data-id="${g.id}">Delete</button>
+        </td>
+      </tr>`;
+  });
+
+  updatePaging();
+  countLabel.textContent = `Showing ${data.items.length} of ${data.total}`;
+  listMsg.textContent = "";
 }
 
 function updatePaging() {
-  const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+  const totalPages = Math.ceil(totalRecords / PAGE_SIZE);
   pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
-  prevPageBtn.disabled = currentPage <= 1;
-  nextPageBtn.disabled = currentPage >= totalPages;
+  prevPageBtn.disabled = currentPage === 1;
+  nextPageBtn.disabled = currentPage === totalPages;
 }
 
-function renderTable(items) {
-  gamesTbody.innerHTML = "";
+/* EVENTS */
 
-  items.forEach(g => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${g.week}</td>
-      <td>${escapeHtml(g.team)}</td>
-      <td>${escapeHtml(g.opponent)}</td>
-      <td>${g.homeAway}</td>
-      <td>${g.pointsFor}</td>
-      <td>${g.pointsAgainst}</td>
-      <td><b>${g.result}</b></td>
-      <td>
-        <button data-id="${g.id}">Edit</button>
-        <button data-id="${g.id}">Delete</button>
-      </td>
-    `;
-    gamesTbody.appendChild(tr);
-  });
+tabs.forEach(t => t.addEventListener("click", () => showView(t.dataset.view)));
+
+prevPageBtn.onclick = () => currentPage > 1 && loadPage(currentPage - 1);
+nextPageBtn.onclick = () => loadPage(currentPage + 1);
+
+searchInput.oninput = () => {
+  lastQuery = searchInput.value;
+  loadPage(1);
+};
+
+filterResult.onchange = () => {
+  lastResultFilter = filterResult.value;
+  loadPage(1);
+};
+
+gamesTbody.onclick = e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const id = btn.dataset.id;
+
+  if (btn.dataset.action === "edit") loadOneGame(id);
+  if (btn.dataset.action === "delete") deleteGame(id);
+};
+
+/* EDIT */
+
+async function loadOneGame(id) {
+  const g = await apiGet(`${API_BASE}/games/${id}`);
+  gameId.value = g.id;
+  team.value = g.team;
+  opponent.value = g.opponent;
+  homeAway.value = g.homeAway;
+  week.value = g.week;
+  pointsFor.value = g.pointsFor;
+  pointsAgainst.value = g.pointsAgainst;
+  result.value = g.result;
+  showView("formView");
 }
 
-/* =========================
-   FORM
-========================= */
-function getFormData() {
-  return {
+async function deleteGame(id) {
+  if (!confirm("Delete?")) return;
+  await apiSend(`${API_BASE}/games/${id}`, "DELETE", {});
+  loadPage(currentPage);
+}
+
+/* STATS */
+
+async function loadStats() {
+  const s = await apiGet(`${API_BASE}/stats`);
+  statTotalGames.textContent = s.totalGames;
+  statWL.textContent = `${s.wins}/${s.losses}`;
+  statAvgPF.textContent = s.avgPF.toFixed(1);
+
+  if (s.highPFGame) {
+    statHighPF.textContent = s.highPFGame.pointsFor;
+    statHighPFDetail.textContent = `${s.highPFGame.team} vs ${s.highPFGame.opponent}`;
+  }
+}
+
+/* FORM */
+
+gameForm.onsubmit = async e => {
+  e.preventDefault();
+
+  const d = {
+    id: gameId.value || null,
     team: titleCaseWords(team.value),
     opponent: titleCaseWords(opponent.value),
     homeAway: homeAway.value,
@@ -183,113 +222,13 @@ function getFormData() {
     pointsAgainst: Number(pointsAgainst.value),
     result: result.value
   };
-}
 
-function resetForm() {
-  gameId.value = "";
-  team.value = "";
-  opponent.value = "";
-  homeAway.value = "";
-  week.value = "";
-  pointsFor.value = "";
-  pointsAgainst.value = "";
-  result.value = "";
-  clearErrors();
-  formTitle.textContent = "Add Game";
-}
+  if (!d.id) await apiSend(`${API_BASE}/games`, "POST", d);
+  else await apiSend(`${API_BASE}/games/${d.id}`, "PUT", d);
 
-/* =========================
-   EDIT / DELETE (FIXED)
-========================= */
-gamesTbody.addEventListener("click", async (e) => {
-  const btn = e.target.closest("button");
-  if (!btn) return;
-
-  const action = btn.textContent.trim().toLowerCase();
-  const id = btn.dataset.id;
-
-  if (action === "edit") {
-    const g = await apiGet(`${API_BASE}/games/${id}`);
-    gameId.value = g.id;
-    team.value = g.team;
-    opponent.value = g.opponent;
-    homeAway.value = g.homeAway;
-    week.value = g.week;
-    pointsFor.value = g.pointsFor;
-    pointsAgainst.value = g.pointsAgainst;
-    result.value = g.result;
-    formTitle.textContent = "Edit Game";
-    showView("formView");
-  }
-
-  if (action === "delete") {
-    if (!confirm("Delete this game?")) return;
-    await apiSend(`${API_BASE}/games/${id}`, "DELETE", {});
-    loadPage(currentPage);
-  }
-});
-
-/* =========================
-   STATS
-========================= */
-async function loadStats() {
-  statsMsg.textContent = "Loading...";
-  try {
-    const s = await apiGet(`${API_BASE}/stats`);
-    statTotalGames.textContent = s.totalGames;
-    statWL.textContent = `${s.wins} / ${s.losses}`;
-    statAvgPF.textContent = s.avgPF.toFixed(1);
-
-    if (s.highPFGame) {
-      statHighPF.textContent = s.highPFGame.pointsFor;
-      statHighPFDetail.textContent =
-        `${s.highPFGame.team} vs ${s.highPFGame.opponent} (Week ${s.highPFGame.week})`;
-    }
-    statsMsg.textContent = "";
-  } catch (err) {
-    statsMsg.textContent = err.message;
-  }
-}
-
-/* =========================
-   EVENTS
-========================= */
-tabs.forEach(t => t.addEventListener("click", () => showView(t.dataset.view)));
-
-prevPageBtn.addEventListener("click", () => loadPage(currentPage - 1));
-nextPageBtn.addEventListener("click", () => loadPage(currentPage + 1));
-
-searchInput.addEventListener("input", () => {
-  lastQuery = searchInput.value;
-  loadPage(1);
-});
-
-filterResult.addEventListener("change", () => {
-  lastResultFilter = filterResult.value;
-  loadPage(1);
-});
-
-cancelBtn.addEventListener("click", () => {
-  resetForm();
   showView("listView");
-});
+};
 
-gameForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const d = getFormData();
+/* INIT */
 
-  if (gameId.value) {
-    await apiSend(`${API_BASE}/games/${gameId.value}`, "PUT", d);
-  } else {
-    await apiSend(`${API_BASE}/games`, "POST", d);
-  }
-
-  resetForm();
-  showView("listView");
-});
-
-/* =========================
-   INIT
-========================= */
-resetForm();
 loadPage(1);
