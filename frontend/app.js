@@ -2,8 +2,10 @@ const API = "https://college-football-game-tracker-part2-1.onrender.com/api";
 
 let allGames = [];
 let page = 1;
-let pageSize = 10;
+let pageSize = Number(getCookie("pageSize")) || 10;
 let search = "";
+let sortField = "week";
+let sortDir = "asc";
 let editingId = null;
 
 /* DOM */
@@ -15,45 +17,64 @@ const prevBtn = document.getElementById("prevPageBtn");
 const nextBtn = document.getElementById("nextPageBtn");
 const form = document.getElementById("gameForm");
 
-/* Stats DOM */
-const statTotalGames = document.getElementById("statTotalGames");
-const statWL = document.getElementById("statWL");
-const statAvgPF = document.getElementById("statAvgPF");
-const statHighPF = document.getElementById("statHighPF");
+/* ---------- Cookies ---------- */
+function setCookie(n, v) {
+  document.cookie = `${n}=${v};path=/`;
+}
+function getCookie(n) {
+  return document.cookie
+    .split("; ")
+    .find((r) => r.startsWith(n + "="))
+    ?.split("=")[1];
+}
 
-/* ---------- Normalize ---------- */
+/* ---------- Normalize DB response ---------- */
 function normalizeGame(g) {
   return {
     id: g.id,
-    week: Number(g.week),
+    week: Number(g.week) || 0,
     team: g.team || "",
     opponent: g.opponent || "",
-    team_score: Number(g.pointsfor),
-    opponent_score: Number(g.pointsagainst)
+    pointsfor: Number(g.pointsfor) || 0,
+    pointsagainst: Number(g.pointsagainst) || 0,
+    result: g.result || "",
+    imageurl: g.imageurl || ""
   };
 }
 
-/* ---------- Load ---------- */
+/* ---------- Load Games ---------- */
 async function loadAllGames() {
   const res = await fetch(`${API}/games`);
   const data = await res.json();
-
   allGames = (data.items || []).map(normalizeGame);
-
   render();
-  renderStats();
+  loadStats();
 }
 
-/* ---------- Render Table ---------- */
+/* ---------- Render List ---------- */
 function render() {
   let games = [...allGames];
 
   if (search) {
     const s = search.toLowerCase();
     games = games.filter(
-      g => g.team.toLowerCase().includes(s) || g.opponent.toLowerCase().includes(s)
+      g =>
+        g.team.toLowerCase().includes(s) ||
+        g.opponent.toLowerCase().includes(s)
     );
   }
+
+  games.sort((a, b) => {
+    let x = a[sortField];
+    let y = b[sortField];
+    if (typeof x === "string") x = x.toLowerCase();
+    if (typeof y === "string") y = y.toLowerCase();
+    if (x === y) return 0;
+    return sortDir === "asc" ? (x > y ? 1 : -1) : (x < y ? 1 : -1);
+  });
+
+  const totalPages = Math.max(1, Math.ceil(games.length / pageSize));
+  if (page > totalPages) page = totalPages;
 
   const start = (page - 1) * pageSize;
   const pageItems = games.slice(start, start + pageSize);
@@ -66,9 +87,9 @@ function render() {
         <td>${g.week}</td>
         <td>${g.team}</td>
         <td>${g.opponent}</td>
-        <td>${g.team_score}</td>
-        <td>${g.opponent_score}</td>
-        <td>${g.team_score > g.opponent_score ? "W" : "L"}</td>
+        <td>${g.pointsfor}</td>
+        <td>${g.pointsagainst}</td>
+        <td>${g.pointsfor > g.pointsagainst ? "W" : "L"}</td>
         <td>
           <button onclick="editGame(${g.id})">Edit</button>
           <button onclick="delGame(${g.id})">Delete</button>
@@ -77,46 +98,36 @@ function render() {
     `;
   });
 
-  pageLabel.innerText = `Page ${page}`;
+  pageLabel.innerText = `Page ${page} of ${totalPages}`;
+  setCookie("pageSize", pageSize);
 }
 
-/* ---------- STATS ---------- */
-function renderStats() {
-  const total = allGames.length;
+/* ---------- Stats ---------- */
+async function loadStats() {
+  const res = await fetch(`${API}/stats`);
+  const s = await res.json();
 
-  let wins = 0;
-  let totalPF = 0;
-  let highGame = null;
+  document.getElementById("totalGames").innerText = s.total || 0;
+  document.getElementById("winsLosses").innerText = `${s.wins || 0} / ${s.losses || 0}`;
+  document.getElementById("avgPF").innerText = Number(s.avg_pf || 0).toFixed(1);
 
-  allGames.forEach(g => {
-    if (g.team_score > g.opponent_score) wins++;
-    totalPF += g.team_score;
-
-    if (!highGame || g.team_score > highGame.team_score) {
-      highGame = g;
-    }
-  });
-
-  const losses = total - wins;
-  const avg = total ? (totalPF / total).toFixed(1) : "0.0";
-
-  statTotalGames.innerText = total;
-  statWL.innerText = `${wins} / ${losses}`;
-  statAvgPF.innerText = avg;
-
-  if (highGame) {
-    statHighPF.innerText = `${highGame.team} (${highGame.team_score})`;
+  if (allGames.length > 0) {
+    const highest = [...allGames].sort((a, b) => b.pointsfor - a.pointsfor)[0];
+    document.getElementById("highestPF").innerText =
+      `${highest.team} (${highest.pointsfor})`;
   } else {
-    statHighPF.innerText = "—";
+    document.getElementById("highestPF").innerText = "-";
   }
 }
 
-/* ---------- CRUD ---------- */
+/* ---------- Delete ---------- */
 window.delGame = async (id) => {
+  if (!confirm("Delete this game?")) return;
   await fetch(`${API}/games/${id}`, { method: "DELETE" });
-  loadAllGames();
+  await loadAllGames();
 };
 
+/* ---------- Edit ---------- */
 window.editGame = (id) => {
   const g = allGames.find(x => x.id === id);
   if (!g) return;
@@ -126,24 +137,30 @@ window.editGame = (id) => {
   team.value = g.team;
   opponent.value = g.opponent;
   week.value = g.week;
-  pointsFor.value = g.team_score;
-  pointsAgainst.value = g.opponent_score;
+  pointsFor.value = g.pointsfor;
+  pointsAgainst.value = g.pointsagainst;
 
   switchView("formView");
 };
 
+/* ---------- Submit ---------- */
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const payload = {
-    team: team.value,
-    opponent: opponent.value,
+    team: team.value.trim(),
+    opponent: opponent.value.trim(),
     week: Number(week.value),
     teamScore: Number(pointsFor.value),
-    opponentScore: Number(pointsAgainst.value)
+    opponentScore: Number(pointsAgainst.value),
+    result: Number(pointsFor.value) > Number(pointsAgainst.value) ? "W" : "L",
+    imageUrl: "https://via.placeholder.com/300x150?text=Game"
   };
 
-  const url = editingId ? `${API}/games/${editingId}` : `${API}/games`;
+  const url = editingId
+    ? `${API}/games/${editingId}`
+    : `${API}/games`;
+
   const method = editingId ? "PUT" : "POST";
 
   await fetch(url, {
@@ -155,8 +172,27 @@ form.addEventListener("submit", async (e) => {
   editingId = null;
   form.reset();
   switchView("listView");
-  loadAllGames();
+  await loadAllGames();
 });
+
+/* ---------- Paging ---------- */
+prevBtn.onclick = () => {
+  if (page > 1) {
+    page--;
+    render();
+  }
+};
+nextBtn.onclick = () => {
+  page++;
+  render();
+};
+
+/* ---------- Search ---------- */
+searchInput.oninput = (e) => {
+  search = e.target.value;
+  page = 1;
+  render();
+};
 
 /* ---------- Tabs ---------- */
 document.querySelectorAll(".tab").forEach(btn => {
@@ -167,12 +203,6 @@ function switchView(id) {
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
-
-/* ---------- Search ---------- */
-searchInput.oninput = e => {
-  search = e.target.value;
-  render();
-};
 
 /* ---------- Init ---------- */
 loadAllGames();
