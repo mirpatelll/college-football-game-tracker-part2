@@ -7,124 +7,175 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<header class="header">
-  <div>
-    <h1>🏈 College Football Game Tracker</h1>
-    <p class="subtitle">Cloud Collection Manager (Client/Server + JSON)</p>
-  </div>
-</header>
+  <header class="header">
+    <div>
+      <h1>🏈 College Football Game Tracker</h1>
+      <p class="subtitle">Cloud Collection Manager (Client/Server + JSON)</p>
+    </div>
+  </header>
 
-<nav class="tabs" aria-label="Views">
-  <button class="tab active" data-view="listView">List</button>
-  <button class="tab" data-view="formView" id="newGameTab">Add / Edit</button>
-  <button class="tab" data-view="statsView">Stats</button>
-</nav>
+  <nav class="tabs" aria-label="Views">
+    <button class="tab active" data-view="listView">List</button>
+    <button class="tab" data-view="formView" id="newGameTab">Add / Edit</button>
+    <button class="tab" data-view="statsView">Stats</button>
+  </nav>
 
-<main class="container">
+  <main class="container">
+    <!-- LIST VIEW -->
+    <section id="listView" class="view active">
+      <div class="card">
+        <div class="card-header">
+          <h2>All Games</h2>
+          <div class="tools">
+            <input id="searchInput" class="input" placeholder="Search team/opponent..." />
+            <select id="filterResult" class="input">
+              <option value="ALL">All Results</option>
+              <option value="W">Wins</option>
+              <option value="L">Losses</option>
+            </select>
+          </div>
+        </div>
 
-<!-- LIST -->
-<section id="listView" class="view active">
-<div class="card">
-<div class="card-header">
-<h2>All Games</h2>
-<div class="tools">
-<input id="searchInput" class="input" placeholder="Search team/opponent..." />
-<select id="filterResult" class="input">
-<option value="ALL">All Results</option>
-<option value="W">Wins</option>
-<option value="L">Losses</option>
-</select>
-</div>
-</div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>Team</th>
+                <th>Opponent</th>
+                <th>H/A</th>
+                <th>PF</th>
+                <th>PA</th>
+                <th>Result</th>
+                <th class="right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="gamesTbody"></tbody>
+          </table>
+        </div>
 
-<table class="table">
-<thead>
-<tr>
-<th>Week</th>
-<th>Team</th>
-<th>Opponent</th>
-<th>PF</th>
-<th>PA</th>
-<th>Result</th>
-<th>Actions</th>
-</tr>
-</thead>
-<tbody id="gamesTbody"></tbody>
-</table>
+        <div class="footer-row">
+          <div class="paging">
+            <button class="btn btn-ghost" id="prevPageBtn">Prev</button>
+            <span class="muted" id="pageLabel">Page 1</span>
+            <button class="btn btn-ghost" id="nextPageBtn">Next</button>
+          </div>
+          <span id="countLabel" class="muted"></span>
+        </div>
 
-<div class="footer-row">
-<button id="prevPageBtn">Prev</button>
-<span id="pageLabel"></span>
-<button id="nextPageBtn">Next</button>
-</div>
+        <div id="listMsg" class="msg" role="status" aria-live="polite"></div>
+      </div>
+    </section>
 
-</div>
-</section>
+    <!-- FORM VIEW -->
+    <section id="formView" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="formTitle">Add Game</h2>
+          <p class="muted" id="formHint">Fill out the fields and click Save.</p>
+        </div>
 
-<!-- FORM -->
-<section id="formView" class="view">
-<div class="card">
+        <form id="gameForm" novalidate>
+          <input type="hidden" id="gameId" />
 
-<form id="gameForm">
+          <div class="grid">
+            <div class="field">
+              <label for="team">Team *</label>
+              <input id="team" class="input" type="text" maxlength="60" required placeholder="Clemson" />
+              <small class="error" id="teamErr"></small>
+            </div>
 
-<label>Team</label>
-<input id="team"/>
+            <div class="field">
+              <label for="opponent">Opponent *</label>
+              <input id="opponent" class="input" type="text" maxlength="60" required placeholder="Florida State" />
+              <small class="error" id="opponentErr"></small>
+            </div>
 
-<label>Opponent</label>
-<input id="opponent"/>
+            <div class="field">
+              <label for="homeAway">Home/Away *</label>
+              <select id="homeAway" class="input" required>
+                <option value="">Select…</option>
+                <option value="Home">Home</option>
+                <option value="Away">Away</option>
+              </select>
+              <small class="error" id="homeAwayErr"></small>
+            </div>
 
-<label>Week</label>
-<input id="week" type="number"/>
+            <div class="field">
+              <label for="week">Week *</label>
+              <input id="week" class="input" type="number" min="1" max="20" required placeholder="1" />
+              <small class="error" id="weekErr"></small>
+            </div>
 
-<label>Points For</label>
-<input id="pointsFor" type="number"/>
+            <div class="field">
+              <label for="pointsFor">Points Scored (PF) *</label>
+              <input id="pointsFor" class="input" type="number" min="0" max="100" required placeholder="34" />
+              <small class="error" id="pointsForErr"></small>
+            </div>
 
-<label>Points Against</label>
-<input id="pointsAgainst" type="number"/>
+            <div class="field">
+              <label for="pointsAgainst">Points Allowed (PA) *</label>
+              <input id="pointsAgainst" class="input" type="number" min="0" max="100" required placeholder="24" />
+              <small class="error" id="pointsAgainstErr"></small>
+            </div>
 
-<button type="submit">Save</button>
+            <div class="field">
+              <label for="result">Result *</label>
+              <select id="result" class="input" required>
+                <option value="">Select…</option>
+                <option value="W">Win (W)</option>
+                <option value="L">Loss (L)</option>
+              </select>
+              <small class="error" id="resultErr"></small>
+            </div>
+          </div>
 
-</form>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary" id="saveBtn">Save Game</button>
+            <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+          </div>
 
-</div>
-</section>
+          <div id="formMsg" class="msg" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
 
-<!-- STATS -->
-<section id="statsView" class="view">
-<div class="card">
+    <!-- STATS VIEW -->
+    <section id="statsView" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Stats</h2>
+          <p class="muted">Pulled from server JSON.</p>
+        </div>
 
-<h2>Stats</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">Total Games</div>
+            <div class="stat-value" id="statTotalGames">0</div>
+          </div>
 
-<div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">Wins / Losses</div>
+            <div class="stat-value" id="statWL">0 / 0</div>
+          </div>
 
-<div>
-Total Games
-<div id="totalGames">0</div>
-</div>
+          <div class="stat">
+            <div class="stat-label">Average PF</div>
+            <div class="stat-value" id="statAvgPF">0.0</div>
+          </div>
 
-<div>
-Wins / Losses
-<div id="winsLosses">0 / 0</div>
-</div>
+          <div class="stat">
+            <div class="stat-label">Highest PF Game</div>
+            <div class="stat-value" id="statHighPF">—</div>
+            <div class="muted" id="statHighPFDetail"></div>
+          </div>
+        </div>
 
-<div>
-Average PF
-<div id="avgPF">0.0</div>
-</div>
+        <div id="statsMsg" class="msg" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
 
-<div>
-Highest PF Game
-<div id="highestPF">—</div>
-</div>
-
-</div>
-
-</div>
-</section>
-
-</main>
-
-<script src="app.js"></script>
-
+  <script src="app.js"></script>
 </body>
 </html>
