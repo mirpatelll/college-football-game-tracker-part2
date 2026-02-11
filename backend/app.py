@@ -5,7 +5,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -16,13 +15,12 @@ PLACEHOLDER = "https://via.placeholder.com/300x150?text=Game"
 
 def get_db():
     if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL env var missing.")
+        raise RuntimeError("DATABASE_URL missing")
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
-# ---------------- OPTIONS PREFLIGHT ----------------
 @app.before_request
-def handle_options():
+def options_fix():
     if request.method == "OPTIONS":
         return "", 200
 
@@ -75,8 +73,8 @@ def stats():
 def create_game():
     data = request.json or {}
 
-    team = data.get("team","").strip()
-    opponent = data.get("opponent","").strip()
+    team = (data.get("team") or "").strip()
+    opponent = (data.get("opponent") or "").strip()
     home_away = data.get("homeAway") or data.get("home_away") or "Home"
     week = data.get("week")
     team_score = data.get("teamScore", data.get("team_score"))
@@ -84,7 +82,7 @@ def create_game():
     image_url = data.get("imageUrl", data.get("image_url")) or PLACEHOLDER
 
     if not team or not opponent or week is None:
-        return jsonify({"error":"Missing fields"}),400
+        return jsonify({"error": "Missing fields"}), 400
 
     conn = get_db()
     cur = conn.cursor()
@@ -93,7 +91,15 @@ def create_game():
         INSERT INTO games(team,opponent,home_away,week,team_score,opponent_score,image_url)
         VALUES(%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
-    """,(team,opponent,home_away,int(week),int(team_score),int(opponent_score),image_url))
+    """, (
+        team,
+        opponent,
+        home_away,
+        int(week),
+        int(team_score),
+        int(opponent_score),
+        image_url
+    ))
 
     new_id = cur.fetchone()["id"]
 
@@ -101,7 +107,7 @@ def create_game():
     cur.close()
     conn.close()
 
-    return jsonify({"id":new_id}),201
+    return jsonify({"id": new_id}), 201
 
 
 # ---------------- UPDATE ----------------
@@ -109,23 +115,39 @@ def create_game():
 def update_game(game_id):
     data = request.json or {}
 
+    team = (data.get("team") or "").strip()
+    opponent = (data.get("opponent") or "").strip()
+    home_away = data.get("homeAway") or data.get("home_away") or "Home"
+    week = data.get("week")
+    team_score = data.get("teamScore", data.get("team_score"))
+    opponent_score = data.get("opponentScore", data.get("opponent_score"))
+    image_url = data.get("imageUrl", data.get("image_url")) or PLACEHOLDER
+
+    if not team or not opponent or week is None:
+        return jsonify({"error": "Missing fields"}), 400
+
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
         UPDATE games
-        SET team=%s, opponent=%s, home_away=%s, week=%s,
-            team_score=%s, opponent_score=%s, image_url=%s
+        SET team=%s,
+            opponent=%s,
+            home_away=%s,
+            week=%s,
+            team_score=%s,
+            opponent_score=%s,
+            image_url=%s
         WHERE id=%s
         RETURNING id
-    """,(
-        data["team"],
-        data["opponent"],
-        data.get("homeAway") or data.get("home_away"),
-        int(data["week"]),
-        int(data.get("teamScore",data.get("team_score"))),
-        int(data.get("opponentScore",data.get("opponent_score"))),
-        data.get("imageUrl",data.get("image_url")) or PLACEHOLDER,
+    """, (
+        team,
+        opponent,
+        home_away,
+        int(week),
+        int(team_score),
+        int(opponent_score),
+        image_url,
         game_id
     ))
 
@@ -136,9 +158,9 @@ def update_game(game_id):
     conn.close()
 
     if not updated:
-        return jsonify({"error":"Not found"}),404
+        return jsonify({"error": "Not found"}), 404
 
-    return jsonify({"status":"ok"})
+    return jsonify({"status": "ok"})
 
 
 # ---------------- DELETE ----------------
@@ -146,18 +168,18 @@ def update_game(game_id):
 def delete_game(game_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM games WHERE id=%s RETURNING id",(game_id,))
+    cur.execute("DELETE FROM games WHERE id=%s RETURNING id", (game_id,))
     deleted = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
 
     if not deleted:
-        return jsonify({"error":"Not found"}),404
+        return jsonify({"error": "Not found"}), 404
 
-    return jsonify({"status":"deleted"})
+    return jsonify({"status": "deleted"})
 
 
-# ---------------- KEEP RENDER ALIVE ----------------
+# ---------------- START ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PORT)
