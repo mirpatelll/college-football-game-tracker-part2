@@ -19,89 +19,90 @@ conn = psycopg2.connect(
     port=url.port
 )
 
-starter_games = [
-    (1,"Alabama","Auburn","Home",35,14,"W"),
-    (1,"Clemson","Georgia Tech","Home",31,17,"W"),
-    (1,"Michigan","Ohio State","Home",27,24,"W"),
-    (1,"Texas","Oklahoma","Away",38,35,"W"),
-    (2,"Georgia","Florida","Home",29,13,"W"),
-    (2,"USC","UCLA","Home",24,31,"L"),
-    (2,"Clemson","Florida State","Away",24,28,"L"),
-    (3,"Alabama","LSU","Home",42,21,"W"),
-    (3,"Michigan","Penn State","Away",30,20,"W"),
-    (3,"Texas","Baylor","Home",41,17,"W"),
-] * 3
+PLACEHOLDER_IMAGE = "https://via.placeholder.com/120x80?text=No+Image"
 
-def auto_seed():
+starter_games = [
+("Clemson","Georgia Tech","Home",1,31,17,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/228.png"),
+("Alabama","Auburn","Home",1,35,14,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/333.png"),
+("Georgia","Florida","Home",1,29,13,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/61.png"),
+("Michigan","Ohio State","Home",1,27,24,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/130.png"),
+("Texas","Oklahoma","Away",1,38,35,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/251.png"),
+("USC","UCLA","Home",1,24,31,"L","https://a.espncdn.com/i/teamlogos/ncaa/500/30.png"),
+("LSU","Texas A&M","Away",2,28,24,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/99.png"),
+("Arizona","Utah","Home",1,24,21,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/12.png"),
+("Oregon State","Washington State","Home",1,21,17,"W","https://a.espncdn.com/i/teamlogos/ncaa/500/204.png"),
+("Clemson","Florida State","Away",2,24,28,"L","https://a.espncdn.com/i/teamlogos/ncaa/500/228.png"),
+]*3
+
+def init_db():
     cur = conn.cursor()
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS games (
         id TEXT PRIMARY KEY,
-        week INTEGER,
         team TEXT,
         opponent TEXT,
         homeAway TEXT,
+        week INTEGER,
         pointsFor INTEGER,
         pointsAgainst INTEGER,
-        result TEXT
+        result TEXT,
+        imageUrl TEXT
     )
     """)
 
     cur.execute("SELECT COUNT(*) FROM games")
     count = cur.fetchone()[0]
 
-    if count < 30:
-        cur.execute("DELETE FROM games")
-
+    if count == 0:
         for g in starter_games[:30]:
             cur.execute("""
-            INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (
-                str(uuid.uuid4()),
-                g[0], g[1], g[2], g[3], g[4], g[5], g[6]
-            ))
+            INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,(str(uuid.uuid4()),g[0],g[1],g[2],g[3],g[4],g[5],g[6],g[7]))
 
         conn.commit()
 
     cur.close()
 
-auto_seed()
+init_db()
 
-@app.route("/api/games")
+@app.get("/api/games")
 def get_games():
-    page = int(request.args.get("page", 1))
-    size = int(request.args.get("page_size", 10))
-    offset = (page-1)*size
+    page=int(request.args.get("page",1))
+    size=int(request.args.get("page_size",10))
+    offset=(page-1)*size
 
-    cur = conn.cursor()
+    cur=conn.cursor()
+
     cur.execute("SELECT COUNT(*) FROM games")
-    total = cur.fetchone()[0]
+    total=cur.fetchone()[0]
 
-    cur.execute("SELECT * FROM games ORDER BY week LIMIT %s OFFSET %s",(size,offset))
-    rows = cur.fetchall()
+    cur.execute("""
+    SELECT * FROM games ORDER BY week LIMIT %s OFFSET %s
+    """,(size,offset))
+
+    rows=cur.fetchall()
     cur.close()
 
-    games=[]
-    for r in rows:
-        games.append({
-            "id":r[0],
-            "week":r[1],
-            "team":r[2],
-            "opponent":r[3],
-            "homeAway":r[4],
-            "pointsFor":r[5],
-            "pointsAgainst":r[6],
-            "result":r[7]
-        })
+    games=[{
+        "id":r[0],
+        "team":r[1],
+        "opponent":r[2],
+        "homeAway":r[3],
+        "week":r[4],
+        "pointsFor":r[5],
+        "pointsAgainst":r[6],
+        "result":r[7],
+        "imageUrl":r[8]
+    } for r in rows]
 
     return jsonify({"items":games,"total":total})
 
-@app.route("/api/games/<id>")
-def get_one_game(id):
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM games WHERE id=%s",(id,))
-    r = cur.fetchone()
+@app.get("/api/games/<gid>")
+def get_one(gid):
+    cur=conn.cursor()
+    cur.execute("SELECT * FROM games WHERE id=%s",(gid,))
+    r=cur.fetchone()
     cur.close()
 
     if not r:
@@ -109,54 +110,57 @@ def get_one_game(id):
 
     return jsonify({
         "id":r[0],
-        "week":r[1],
-        "team":r[2],
-        "opponent":r[3],
-        "homeAway":r[4],
+        "team":r[1],
+        "opponent":r[2],
+        "homeAway":r[3],
+        "week":r[4],
         "pointsFor":r[5],
         "pointsAgainst":r[6],
-        "result":r[7]
+        "result":r[7],
+        "imageUrl":r[8]
     })
 
-@app.route("/api/games", methods=["POST"])
+@app.post("/api/games")
 def add_game():
     d=request.json
     gid=str(uuid.uuid4())
     cur=conn.cursor()
 
     cur.execute("""
-    INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-    """,(gid,d["week"],d["team"],d["opponent"],d["homeAway"],
-         d["pointsFor"],d["pointsAgainst"],d["result"]))
+    INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """,(gid,d["team"],d["opponent"],d["homeAway"],d["week"],
+         d["pointsFor"],d["pointsAgainst"],d["result"],
+         d.get("imageUrl") or PLACEHOLDER_IMAGE))
 
     conn.commit()
     cur.close()
     return jsonify({"id":gid})
 
-@app.route("/api/games/<id>",methods=["PUT"])
-def update_game(id):
+@app.put("/api/games/<gid>")
+def update_game(gid):
     d=request.json
     cur=conn.cursor()
 
     cur.execute("""
-    UPDATE games SET week=%s,team=%s,opponent=%s,homeAway=%s,
-    pointsFor=%s,pointsAgainst=%s,result=%s WHERE id=%s
-    """,(d["week"],d["team"],d["opponent"],d["homeAway"],
-         d["pointsFor"],d["pointsAgainst"],d["result"],id))
+    UPDATE games SET team=%s,opponent=%s,homeAway=%s,week=%s,
+    pointsFor=%s,pointsAgainst=%s,result=%s,imageUrl=%s WHERE id=%s
+    """,(d["team"],d["opponent"],d["homeAway"],d["week"],
+         d["pointsFor"],d["pointsAgainst"],d["result"],
+         d.get("imageUrl") or PLACEHOLDER_IMAGE,gid))
 
     conn.commit()
     cur.close()
     return jsonify({"ok":True})
 
-@app.route("/api/games/<id>",methods=["DELETE"])
-def delete_game(id):
+@app.delete("/api/games/<gid>")
+def delete_game(gid):
     cur=conn.cursor()
-    cur.execute("DELETE FROM games WHERE id=%s",(id,))
+    cur.execute("DELETE FROM games WHERE id=%s",(gid,))
     conn.commit()
     cur.close()
     return jsonify({"ok":True})
 
-@app.route("/api/stats")
+@app.get("/api/stats")
 def stats():
     cur=conn.cursor()
 
@@ -169,10 +173,7 @@ def stats():
     cur.execute("SELECT COUNT(*) FROM games WHERE result='L'")
     losses=cur.fetchone()[0]
 
-    cur.execute("""
-    SELECT team,opponent,pointsFor FROM games
-    ORDER BY pointsFor DESC LIMIT 1
-    """)
+    cur.execute("SELECT team,opponent,pointsFor FROM games ORDER BY pointsFor DESC LIMIT 1")
     h=cur.fetchone()
 
     cur.close()
@@ -190,4 +191,4 @@ def stats():
     })
 
 if __name__=="__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",5000)))
+    app.run(host="0.0.0.0",port=int(os.environ.get("PORT",5000)))
