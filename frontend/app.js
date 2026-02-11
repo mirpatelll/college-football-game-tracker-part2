@@ -145,7 +145,6 @@ form.addEventListener("submit", async e => {
     week: Number(week.value),
     team_score: Number(pointsFor.value),
     opponent_score: Number(pointsAgainst.value),
-    home_away: homeAway.value,
     image_url: "https://via.placeholder.com/300x150?text=Game"
   };
 
