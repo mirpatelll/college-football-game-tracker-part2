@@ -2,6 +2,7 @@ const API_URL = "https://college-football-game-tracker-part2-1.onrender.com/api"
 
 let currentPage = 1;
 let pageSize = parseInt(localStorage.getItem("pageSize")) || 10;
+let totalGames = 0;
 
 document.getElementById("pageSize").value = pageSize;
 
@@ -11,8 +12,13 @@ async function loadGames(page = 1) {
   const res = await fetch(`${API_URL}/games`);
   const data = await res.json();
 
-  renderTable(data.items.slice((page-1)*pageSize, page*pageSize));
-  renderPagination(data.items.length);
+  totalGames = data.items.length;
+
+  const start = (currentPage - 1) * pageSize;
+  const end = currentPage * pageSize;
+
+  renderTable(data.items.slice(start, end));
+  renderPagination();
 }
 
 function renderTable(games) {
@@ -37,9 +43,14 @@ function renderTable(games) {
   });
 }
 
-function renderPagination(total) {
+function renderPagination() {
+  const pages = Math.ceil(totalGames / pageSize);
+
   document.getElementById("pageInfo").innerText =
-    `Page ${currentPage} of ${Math.ceil(total/pageSize)}`;
+    `Page ${currentPage} of ${pages}`;
+
+  document.getElementById("prevBtn").disabled = currentPage === 1;
+  document.getElementById("nextBtn").disabled = currentPage >= pages;
 }
 
 async function deleteGame(id) {
@@ -67,8 +78,10 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     body: JSON.stringify(game)
   });
 
+  document.getElementById("gameForm").reset();
+
   alert("Saved!");
-  loadGames();
+  loadGames(1);
 });
 
 document.getElementById("pageSize").addEventListener("change", e => {
@@ -78,11 +91,11 @@ document.getElementById("pageSize").addEventListener("change", e => {
 });
 
 document.getElementById("prevBtn").onclick = () => {
-  if (currentPage > 1) loadGames(currentPage-1);
+  if (currentPage > 1) loadGames(currentPage - 1);
 };
 
 document.getElementById("nextBtn").onclick = () => {
-  loadGames(currentPage+1);
+  loadGames(currentPage + 1);
 };
 
 loadGames();
