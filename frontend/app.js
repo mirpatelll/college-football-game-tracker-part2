@@ -17,35 +17,7 @@ const prevBtn = document.getElementById("prevPageBtn");
 const nextBtn = document.getElementById("nextPageBtn");
 const form = document.getElementById("gameForm");
 
-/* Stats DOM */
-const statTotal = document.getElementById("statTotal");
-const statRecord = document.getElementById("statRecord");
-const statAvgPF = document.getElementById("statAvgPF");
-const statHighPF = document.getElementById("statHighPF");
-
-/* Inject controls */
-document.querySelector(".tools").insertAdjacentHTML(
-  "beforeend",
-  `
-<select id="sortSelect" class="input">
-  <option value="week">Sort: Week</option>
-  <option value="team">Sort: Team</option>
-</select>
-
-<select id="pageSizeSelect" class="input">
-  <option>5</option>
-  <option>10</option>
-  <option>20</option>
-  <option>50</option>
-</select>
-`
-);
-
-const sortSelect = document.getElementById("sortSelect");
-const pageSizeSelect = document.getElementById("pageSizeSelect");
-pageSizeSelect.value = String(pageSize);
-
-/* Cookies */
+/* ---------- Cookies ---------- */
 function setCookie(n, v) {
   document.cookie = `${n}=${v};path=/`;
 }
@@ -56,66 +28,39 @@ function getCookie(n) {
     ?.split("=")[1];
 }
 
-/* Helpers */
-function getField(obj, snake, camel) {
-  return obj?.[snake] ?? obj?.[camel];
-}
-
+/* ---------- Normalize DB response ---------- */
 function normalizeGame(g) {
   return {
     id: g.id,
     week: Number(g.week) || 0,
     team: g.team || "",
     opponent: g.opponent || "",
-    home_away: g.home_away || "",
-    team_score: Number(g.pointsfor ?? g.team_score ?? 0),
-    opponent_score: Number(g.pointsagainst ?? g.opponent_score ?? 0),
-    image_url: g.imageurl || g.image_url || ""
+    pointsfor: Number(g.pointsfor) || 0,
+    pointsagainst: Number(g.pointsagainst) || 0,
+    result: g.result || "",
+    imageurl: g.imageurl || ""
   };
 }
 
-/* Load */
+/* ---------- Load Games ---------- */
 async function loadAllGames() {
   const res = await fetch(`${API}/games`);
   const data = await res.json();
   allGames = (data.items || []).map(normalizeGame);
   render();
-  updateStats();
+  loadStats();
 }
 
-/* Stats */
-function updateStats() {
-  const total = allGames.length;
-
-  const wins = allGames.filter(g => g.team_score > g.opponent_score).length;
-  const losses = total - wins;
-
-  const totalPF = allGames.reduce((s, g) => s + g.team_score, 0);
-  const avgPF = total ? (totalPF / total).toFixed(1) : "0.0";
-
-  const high = allGames.reduce((m, g) => g.team_score > (m?.team_score || 0) ? g : m, null);
-
-  if (statTotal) statTotal.innerText = total;
-  if (statRecord) statRecord.innerText = `${wins} / ${losses}`;
-  if (statAvgPF) statAvgPF.innerText = avgPF;
-  if (statHighPF) statHighPF.innerText = high ? `${high.team} (${high.team_score})` : "—";
-}
-
-/* Render */
+/* ---------- Render List ---------- */
 function render() {
   let games = [...allGames];
 
   if (search) {
     const s = search.toLowerCase();
-    games = games.filter(g =>
-      g.team.toLowerCase().includes(s) ||
-      g.opponent.toLowerCase().includes(s)
-    );
-  }
-
-  if (filterResult.value !== "ALL") {
     games = games.filter(
-      g => (g.team_score > g.opponent_score ? "W" : "L") === filterResult.value
+      g =>
+        g.team.toLowerCase().includes(s) ||
+        g.opponent.toLowerCase().includes(s)
     );
   }
 
@@ -124,7 +69,8 @@ function render() {
     let y = b[sortField];
     if (typeof x === "string") x = x.toLowerCase();
     if (typeof y === "string") y = y.toLowerCase();
-    return sortDir === "asc" ? x > y ? 1 : -1 : x < y ? 1 : -1;
+    if (x === y) return 0;
+    return sortDir === "asc" ? (x > y ? 1 : -1) : (x < y ? 1 : -1);
   });
 
   const totalPages = Math.max(1, Math.ceil(games.length / pageSize));
@@ -137,57 +83,84 @@ function render() {
 
   pageItems.forEach(g => {
     tbody.innerHTML += `
-<tr>
-<td>${g.week}</td>
-<td>${g.team}</td>
-<td>${g.opponent}</td>
-<td>${g.home_away || "-"}</td>
-<td>${g.team_score}</td>
-<td>${g.opponent_score}</td>
-<td>${g.team_score > g.opponent_score ? "W" : "L"}</td>
-<td>
-<button onclick="editGame(${g.id})">Edit</button>
-<button onclick="delGame(${g.id})">Delete</button>
-</td>
-</tr>`;
+      <tr>
+        <td>${g.week}</td>
+        <td>${g.team}</td>
+        <td>${g.opponent}</td>
+        <td>${g.pointsfor}</td>
+        <td>${g.pointsagainst}</td>
+        <td>${g.pointsfor > g.pointsagainst ? "W" : "L"}</td>
+        <td>
+          <button onclick="editGame(${g.id})">Edit</button>
+          <button onclick="delGame(${g.id})">Delete</button>
+        </td>
+      </tr>
+    `;
   });
 
   pageLabel.innerText = `Page ${page} of ${totalPages}`;
+  setCookie("pageSize", pageSize);
 }
 
-/* CRUD */
-window.delGame = async id => {
-  if (!confirm("Delete?")) return;
+/* ---------- Stats ---------- */
+async function loadStats() {
+  const res = await fetch(`${API}/stats`);
+  const s = await res.json();
+
+  document.getElementById("totalGames").innerText = s.total || 0;
+  document.getElementById("winsLosses").innerText = `${s.wins || 0} / ${s.losses || 0}`;
+  document.getElementById("avgPF").innerText = Number(s.avg_pf || 0).toFixed(1);
+
+  if (allGames.length > 0) {
+    const highest = [...allGames].sort((a, b) => b.pointsfor - a.pointsfor)[0];
+    document.getElementById("highestPF").innerText =
+      `${highest.team} (${highest.pointsfor})`;
+  } else {
+    document.getElementById("highestPF").innerText = "-";
+  }
+}
+
+/* ---------- Delete ---------- */
+window.delGame = async (id) => {
+  if (!confirm("Delete this game?")) return;
   await fetch(`${API}/games/${id}`, { method: "DELETE" });
-  loadAllGames();
+  await loadAllGames();
 };
 
-window.editGame = id => {
+/* ---------- Edit ---------- */
+window.editGame = (id) => {
   const g = allGames.find(x => x.id === id);
+  if (!g) return;
+
   editingId = id;
 
   team.value = g.team;
   opponent.value = g.opponent;
   week.value = g.week;
-  pointsFor.value = g.team_score;
-  pointsAgainst.value = g.opponent_score;
+  pointsFor.value = g.pointsfor;
+  pointsAgainst.value = g.pointsagainst;
 
   switchView("formView");
 };
 
-form.addEventListener("submit", async e => {
+/* ---------- Submit ---------- */
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const payload = {
-    team: team.value,
-    opponent: opponent.value,
+    team: team.value.trim(),
+    opponent: opponent.value.trim(),
     week: Number(week.value),
-    team_score: Number(pointsFor.value),
-    opponent_score: Number(pointsAgainst.value),
-    image_url: "https://via.placeholder.com/300x150"
+    teamScore: Number(pointsFor.value),
+    opponentScore: Number(pointsAgainst.value),
+    result: Number(pointsFor.value) > Number(pointsAgainst.value) ? "W" : "L",
+    imageUrl: "https://via.placeholder.com/300x150?text=Game"
   };
 
-  const url = editingId ? `${API}/games/${editingId}` : `${API}/games`;
+  const url = editingId
+    ? `${API}/games/${editingId}`
+    : `${API}/games`;
+
   const method = editingId ? "PUT" : "POST";
 
   await fetch(url, {
@@ -199,18 +172,29 @@ form.addEventListener("submit", async e => {
   editingId = null;
   form.reset();
   switchView("listView");
-  loadAllGames();
+  await loadAllGames();
 });
 
-/* Controls */
-prevBtn.onclick = () => { if (page > 1) { page--; render(); }};
-nextBtn.onclick = () => { page++; render(); };
+/* ---------- Paging ---------- */
+prevBtn.onclick = () => {
+  if (page > 1) {
+    page--;
+    render();
+  }
+};
+nextBtn.onclick = () => {
+  page++;
+  render();
+};
 
-searchInput.oninput = e => { search = e.target.value; page = 1; render(); };
-filterResult.onchange = () => { page = 1; render(); };
-sortSelect.onchange = e => { sortField = e.target.value; render(); };
-pageSizeSelect.onchange = e => { pageSize = Number(e.target.value); page = 1; render(); };
+/* ---------- Search ---------- */
+searchInput.oninput = (e) => {
+  search = e.target.value;
+  page = 1;
+  render();
+};
 
+/* ---------- Tabs ---------- */
 document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => switchView(btn.dataset.view);
 });
@@ -220,5 +204,5 @@ function switchView(id) {
   document.getElementById(id).classList.add("active");
 }
 
-/* Init */
+/* ---------- Init ---------- */
 loadAllGames();
