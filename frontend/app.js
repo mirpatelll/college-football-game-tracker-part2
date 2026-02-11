@@ -1,8 +1,9 @@
 const API = "https://college-football-game-tracker-part2-1.onrender.com/api";
 
 let page = 1;
-let pageSize = 10;
+let pageSize = getCookie("pageSize") || 10;
 let search = "";
+let sort = "week";
 let editingId = null;
 
 const tbody = document.getElementById("gamesTbody");
@@ -12,15 +13,34 @@ const prevBtn = document.getElementById("prevPageBtn");
 const nextBtn = document.getElementById("nextPageBtn");
 const form = document.getElementById("gameForm");
 
+/* Create page size + sort controls dynamically */
+document.querySelector(".tools").insertAdjacentHTML("beforeend", `
+<select id="sortSelect" class="input">
+<option value="week">Sort: Week</option>
+<option value="team">Sort: Team</option>
+</select>
+
+<select id="pageSizeSelect" class="input">
+<option>5</option>
+<option>10</option>
+<option>20</option>
+<option>50</option>
+</select>
+`);
+
+const sortSelect = document.getElementById("sortSelect");
+const pageSizeSelect = document.getElementById("pageSizeSelect");
+
+pageSizeSelect.value = pageSize;
+sortSelect.value = sort;
+
 function setCookie(n,v){document.cookie=`${n}=${v};path=/`;}
 function getCookie(n){return document.cookie.split("; ").find(r=>r.startsWith(n+"="))?.split("=")[1];}
-
-pageSize = getCookie("pageSize") || 10;
 
 async function loadGames() {
   setCookie("pageSize", pageSize);
 
-  const res = await fetch(`${API}/games?page=${page}&size=${pageSize}&search=${search}`);
+  const res = await fetch(`${API}/games?page=${page}&size=${pageSize}&search=${search}&sort=${sort}`);
   const data = await res.json();
 
   tbody.innerHTML = "";
@@ -31,6 +51,7 @@ async function loadGames() {
         <td>${g.week}</td>
         <td>${g.team}</td>
         <td>${g.opponent}</td>
+        <td>${g.home_away || ""}</td>
         <td>${g.team_score}</td>
         <td>${g.opponent_score}</td>
         <td>${g.team_score > g.opponent_score ? "W" : "L"}</td>
@@ -58,11 +79,11 @@ window.editGame = async id => {
 
   editingId = id;
 
-  document.getElementById("team").value = g.team;
-  document.getElementById("opponent").value = g.opponent;
-  document.getElementById("week").value = g.week;
-  document.getElementById("pointsFor").value = g.team_score;
-  document.getElementById("pointsAgainst").value = g.opponent_score;
+  team.value = g.team;
+  opponent.value = g.opponent;
+  week.value = g.week;
+  pointsFor.value = g.team_score;
+  pointsAgainst.value = g.opponent_score;
 
   switchView("formView");
 };
@@ -71,24 +92,19 @@ form.addEventListener("submit", async e => {
   e.preventDefault();
 
   const payload = {
-    team: document.getElementById("team").value,
-    opponent: document.getElementById("opponent").value,
-    week: Number(document.getElementById("week").value),
-    team_score: Number(document.getElementById("pointsFor").value),
-    opponent_score: Number(document.getElementById("pointsAgainst").value),
+    team: team.value,
+    opponent: opponent.value,
+    week: Number(week.value),
+    team_score: Number(pointsFor.value),
+    opponent_score: Number(pointsAgainst.value),
     image_url: "https://via.placeholder.com/300x150?text=Game"
   };
 
-  const resp = await fetch(editingId ? `${API}/games/${editingId}` : `${API}/games`, {
+  await fetch(editingId ? `${API}/games/${editingId}` : `${API}/games`, {
     method: editingId ? "PUT" : "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-
-  if (!resp.ok) {
-    alert("Save failed. Check console.");
-    return;
-  }
 
   editingId = null;
   form.reset();
@@ -96,6 +112,7 @@ form.addEventListener("submit", async e => {
   loadGames();
 });
 
+/* Paging */
 prevBtn.onclick = () => {
   if (page > 1) {
     page--;
@@ -108,12 +125,28 @@ nextBtn.onclick = () => {
   loadGames();
 };
 
+/* Search */
 searchInput.oninput = e => {
   search = e.target.value;
   page = 1;
   loadGames();
 };
 
+/* Sort */
+sortSelect.onchange = e => {
+  sort = e.target.value;
+  page = 1;
+  loadGames();
+};
+
+/* Page Size */
+pageSizeSelect.onchange = e => {
+  pageSize = e.target.value;
+  page = 1;
+  loadGames();
+};
+
+/* Tabs */
 document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => switchView(btn.dataset.view);
 });
