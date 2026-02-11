@@ -8,7 +8,13 @@
 
 <body>
 
-<h1>College Football Game Tracker</h1>
+<header>
+<h1>🏈 College Football Tracker</h1>
+<div class="tabs">
+<button id="gamesTab">Games</button>
+<button id="statsTab">Stats</button>
+</div>
+</header>
 
 <div class="controls">
 <input id="search" placeholder="Search team...">
@@ -26,13 +32,11 @@
 </select>
 </div>
 
-<div id="stats"></div>
-
-<div id="games"></div>
+<div id="gamesView">
 
 <h2>Add / Edit Game</h2>
 
-<form id="form">
+<form id="form" class="form-grid">
 <input id="team" placeholder="Team" required>
 <input id="opponent" placeholder="Opponent" required>
 <input id="week" type="number" placeholder="Week" required>
@@ -40,13 +44,22 @@
 <input id="oppScore" type="number" placeholder="Opponent Score" required>
 <input id="imageUrl" placeholder="Image URL">
 
-<button type="submit">Save</button>
+<button type="submit">Save Game</button>
 </form>
+
+<div id="games" class="grid"></div>
 
 <div class="pager">
 <button id="prev">Prev</button>
 <span id="page"></span>
 <button id="next">Next</button>
+</div>
+
+</div>
+
+<div id="statsView" class="hidden">
+<h2>Statistics</h2>
+<div id="statsCards"></div>
 </div>
 
 <script src="app.js"></script>
