@@ -32,9 +32,7 @@ starter_games = [
     (3,"Texas","Baylor","Home",41,17,"W"),
 ] * 3
 
-
-@app.route("/api/seed")
-def seed():
+def auto_seed():
     cur = conn.cursor()
 
     cur.execute("""
@@ -47,29 +45,37 @@ def seed():
         pointsFor INTEGER,
         pointsAgainst INTEGER,
         result TEXT
-    );
+    )
     """)
 
-    cur.execute("DELETE FROM games")
+    cur.execute("SELECT COUNT(*) FROM games")
+    count = cur.fetchone()[0]
 
-    for g in starter_games[:30]:
-        cur.execute("""
-        INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        """, (
-            str(uuid.uuid4()),
-            g[0], g[1], g[2], g[3], g[4], g[5], g[6]
-        ))
+    if count == 0:
+        for g in starter_games[:30]:
+            cur.execute("""
+            INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (
+                str(uuid.uuid4()),
+                g[0], g[1], g[2], g[3], g[4], g[5], g[6]
+            ))
+        conn.commit()
 
-    conn.commit()
     cur.close()
 
-    return jsonify({"status":"seeded 30 games"})
-
+auto_seed()
 
 @app.route("/api/games")
 def get_games():
+    page = int(request.args.get("page", 1))
+    size = int(request.args.get("page_size", 10))
+    offset = (page-1)*size
+
     cur = conn.cursor()
-    cur.execute("SELECT * FROM games ORDER BY week")
+    cur.execute("SELECT COUNT(*) FROM games")
+    total = cur.fetchone()[0]
+
+    cur.execute("SELECT * FROM games ORDER BY week LIMIT %s OFFSET %s",(size,offset))
     rows = cur.fetchall()
     cur.close()
 
@@ -86,14 +92,13 @@ def get_games():
             "result":r[7]
         })
 
-    return jsonify({"items":games,"total":len(games)})
-
+    return jsonify({"items":games,"total":total})
 
 @app.route("/api/games", methods=["POST"])
 def add_game():
     d=request.json
-    cur=conn.cursor()
     gid=str(uuid.uuid4())
+    cur=conn.cursor()
 
     cur.execute("""
     INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
@@ -103,29 +108,20 @@ def add_game():
     cur.close()
     return jsonify({"id":gid})
 
-
-# ✅ EDIT ROUTE (THIS WAS MISSING)
-@app.route("/api/games/<id>", methods=["PUT"])
+@app.route("/api/games/<id>",methods=["PUT"])
 def update_game(id):
     d=request.json
     cur=conn.cursor()
 
     cur.execute("""
-    UPDATE games SET
-        week=%s,
-        team=%s,
-        opponent=%s,
-        homeAway=%s,
-        pointsFor=%s,
-        pointsAgainst=%s,
-        result=%s
-    WHERE id=%s
-    """,(d["week"],d["team"],d["opponent"],d["homeAway"],d["pointsFor"],d["pointsAgainst"],d["result"],id))
+    UPDATE games SET week=%s,team=%s,opponent=%s,homeAway=%s,
+    pointsFor=%s,pointsAgainst=%s,result=%s WHERE id=%s
+    """,(d["week"],d["team"],d["opponent"],d["homeAway"],
+         d["pointsFor"],d["pointsAgainst"],d["result"],id))
 
     conn.commit()
     cur.close()
     return jsonify({"ok":True})
-
 
 @app.route("/api/games/<id>",methods=["DELETE"])
 def delete_game(id):
@@ -134,7 +130,6 @@ def delete_game(id):
     conn.commit()
     cur.close()
     return jsonify({"ok":True})
-
 
 @app.route("/api/stats")
 def stats():
@@ -157,6 +152,5 @@ def stats():
         "avgPF":(pf/total) if total else 0
     })
 
-
 if __name__=="__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",5000)))
