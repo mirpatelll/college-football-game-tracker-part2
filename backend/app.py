@@ -18,7 +18,7 @@ def get_db():
 
 
 @app.before_request
-def options():
+def options_fix():
     if request.method == "OPTIONS":
         return "", 200
 
@@ -28,7 +28,7 @@ def options():
 def list_games():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM games ORDER BY week, game_id")
+    cur.execute("SELECT * FROM games ORDER BY week,id")
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -45,7 +45,7 @@ def stats():
     total = cur.fetchone()["total"]
 
     cur.execute("SELECT AVG(team_score)::float AS avg FROM games")
-    avg = cur.fetchone()["avg"] or 0
+    avg_pf = cur.fetchone()["avg"] or 0
 
     cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE team_score > opponent_score")
     wins = cur.fetchone()["wins"]
@@ -54,13 +54,29 @@ def stats():
     cur.close()
     conn.close()
 
-    return jsonify({"total": total, "wins": wins, "losses": losses, "avg_pf": round(avg,2)})
+    return jsonify({
+        "total": total,
+        "wins": wins,
+        "losses": losses,
+        "avg_pf": round(avg_pf, 2)
+    })
 
 
 # ---------- CREATE ----------
 @app.route("/api/games", methods=["POST"])
-def create():
-    d = request.json
+def create_game():
+    d = request.json or {}
+
+    team = (d.get("team") or "").strip()
+    opponent = (d.get("opponent") or "").strip()
+    home_away = d.get("homeAway") or d.get("home_away") or "Home"
+    week = d.get("week")
+    team_score = d.get("teamScore", d.get("team_score"))
+    opponent_score = d.get("opponentScore", d.get("opponent_score"))
+    image_url = d.get("imageUrl", d.get("image_url")) or PLACEHOLDER
+
+    if not team or not opponent or week is None:
+        return jsonify({"error": "Missing fields"}), 400
 
     conn = get_db()
     cur = conn.cursor()
@@ -68,47 +84,64 @@ def create():
     cur.execute("""
         INSERT INTO games(team,opponent,home_away,week,team_score,opponent_score,image_url)
         VALUES(%s,%s,%s,%s,%s,%s,%s)
-        RETURNING game_id
-    """,(
-        d["team"],
-        d["opponent"],
-        d.get("homeAway","Home"),
-        int(d["week"]),
-        int(d["teamScore"]),
-        int(d["opponentScore"]),
-        d.get("imageUrl",PLACEHOLDER)
+        RETURNING id
+    """, (
+        team,
+        opponent,
+        home_away,
+        int(week),
+        int(team_score),
+        int(opponent_score),
+        image_url
     ))
 
-    gid = cur.fetchone()["game_id"]
+    new_id = cur.fetchone()["id"]
+
     conn.commit()
     cur.close()
     conn.close()
 
-    return jsonify({"game_id":gid})
+    return jsonify({"id": new_id}), 201
 
 
 # ---------- UPDATE ----------
 @app.route("/api/games/<int:gid>", methods=["PUT"])
-def update(gid):
-    d = request.json
+def update_game(gid):
+    d = request.json or {}
+
+    team = (d.get("team") or "").strip()
+    opponent = (d.get("opponent") or "").strip()
+    home_away = d.get("homeAway") or d.get("home_away") or "Home"
+    week = d.get("week")
+    team_score = d.get("teamScore", d.get("team_score"))
+    opponent_score = d.get("opponentScore", d.get("opponent_score"))
+    image_url = d.get("imageUrl", d.get("image_url")) or PLACEHOLDER
+
+    if not team or not opponent or week is None:
+        return jsonify({"error": "Missing fields"}), 400
 
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
         UPDATE games
-        SET team=%s, opponent=%s, home_away=%s, week=%s,
-            team_score=%s, opponent_score=%s, image_url=%s
-        WHERE game_id=%s
-        RETURNING game_id
-    """,(
-        d["team"],
-        d["opponent"],
-        d.get("homeAway","Home"),
-        int(d["week"]),
-        int(d["teamScore"]),
-        int(d["opponentScore"]),
-        d.get("imageUrl",PLACEHOLDER),
+        SET team=%s,
+            opponent=%s,
+            home_away=%s,
+            week=%s,
+            team_score=%s,
+            opponent_score=%s,
+            image_url=%s
+        WHERE id=%s
+        RETURNING id
+    """, (
+        team,
+        opponent,
+        home_away,
+        int(week),
+        int(team_score),
+        int(opponent_score),
+        image_url,
         gid
     ))
 
@@ -119,26 +152,26 @@ def update(gid):
     conn.close()
 
     if not row:
-        return jsonify({"error":"not found"}),404
+        return jsonify({"error": "not found"}), 404
 
-    return jsonify({"ok":True})
+    return jsonify({"ok": True})
 
 
 # ---------- DELETE ----------
 @app.route("/api/games/<int:gid>", methods=["DELETE"])
-def delete(gid):
+def delete_game(gid):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM games WHERE game_id=%s RETURNING game_id",(gid,))
+    cur.execute("DELETE FROM games WHERE id=%s RETURNING id", (gid,))
     row = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
 
     if not row:
-        return jsonify({"error":"not found"}),404
+        return jsonify({"error": "not found"}), 404
 
-    return jsonify({"deleted":True})
+    return jsonify({"deleted": True})
 
 
 if __name__ == "__main__":
