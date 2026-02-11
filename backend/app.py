@@ -12,8 +12,6 @@ PLACEHOLDER = "https://via.placeholder.com/300x150?text=Game"
 
 
 def get_db():
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL missing")
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
@@ -43,10 +41,10 @@ def stats():
     cur.execute("SELECT COUNT(*)::int AS total FROM games")
     total = cur.fetchone()["total"]
 
-    cur.execute("SELECT AVG(team_score)::float AS avg_pf FROM games")
+    cur.execute("SELECT AVG(pf)::float AS avg_pf FROM games")
     avg_pf = cur.fetchone()["avg_pf"] or 0
 
-    cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE team_score > opponent_score")
+    cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE pf > pa")
     wins = cur.fetchone()["wins"]
 
     conn.close()
@@ -66,22 +64,19 @@ def create_game():
 
     team = d.get("team", "").strip()
     opponent = d.get("opponent", "").strip()
-    week = d.get("week")
-    team_score = d.get("teamScore") or d.get("team_score")
-    opponent_score = d.get("opponentScore") or d.get("opponent_score")
-    image_url = d.get("imageUrl") or d.get("image_url") or PLACEHOLDER
-
-    if not team or not opponent or week is None:
-        return jsonify({"error": "Missing fields"}), 400
+    week = int(d.get("week"))
+    pf = int(d.get("teamScore") or d.get("pf"))
+    pa = int(d.get("opponentScore") or d.get("pa"))
+    image_url = d.get("imageUrl") or PLACEHOLDER
 
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO games (team, opponent, week, team_score, opponent_score, image_url)
+        INSERT INTO games (team, opponent, week, pf, pa, image_url)
         VALUES (%s,%s,%s,%s,%s,%s)
         RETURNING id
-    """, (team, opponent, int(week), int(team_score), int(opponent_score), image_url))
+    """, (team, opponent, week, pf, pa, image_url))
 
     new_id = cur.fetchone()["id"]
     conn.commit()
@@ -97,10 +92,10 @@ def update_game(gid):
 
     team = d.get("team", "").strip()
     opponent = d.get("opponent", "").strip()
-    week = d.get("week")
-    team_score = d.get("teamScore") or d.get("team_score")
-    opponent_score = d.get("opponentScore") or d.get("opponent_score")
-    image_url = d.get("imageUrl") or d.get("image_url") or PLACEHOLDER
+    week = int(d.get("week"))
+    pf = int(d.get("teamScore") or d.get("pf"))
+    pa = int(d.get("opponentScore") or d.get("pa"))
+    image_url = d.get("imageUrl") or PLACEHOLDER
 
     conn = get_db()
     cur = conn.cursor()
@@ -110,11 +105,11 @@ def update_game(gid):
         SET team=%s,
             opponent=%s,
             week=%s,
-            team_score=%s,
-            opponent_score=%s,
+            pf=%s,
+            pa=%s,
             image_url=%s
         WHERE id=%s
-    """, (team, opponent, int(week), int(team_score), int(opponent_score), image_url, gid))
+    """, (team, opponent, week, pf, pa, image_url, gid))
 
     conn.commit()
     conn.close()
