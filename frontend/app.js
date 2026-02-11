@@ -50,21 +50,17 @@ function getCookie(n) {
     ?.split("=")[1];
 }
 
-/* ---------- Key helpers (snake_case OR camelCase) ---------- */
-function getField(obj, snake, camel) {
-  // Prefer snake_case, then camelCase, otherwise undefined
-  return obj?.[snake] ?? obj?.[camel];
-}
+/* ---------- FIXED NORMALIZER ---------- */
 function normalizeGame(g) {
   return {
-    id: getField(g, "id", "id"),
-    week: Number(getField(g, "week", "week")) || 0,
-    team: getField(g, "team", "team") || "",
-    opponent: getField(g, "opponent", "opponent") || "",
-    home_away: getField(g, "home_away", "homeAway") || "",
-    team_score: Number(getField(g, "team_score", "teamScore")) ?? 0,
-    opponent_score: Number(getField(g, "opponent_score", "opponentScore")) ?? 0,
-    image_url: getField(g, "image_url", "imageUrl") || "",
+    id: g.id,
+    week: Number(g.week) || 0,
+    team: g.team || "",
+    opponent: g.opponent || "",
+    team_score: Number(g.pointsfor) || 0,
+    opponent_score: Number(g.pointsagainst) || 0,
+    image_url: g.imageurl || "",
+    home_away: ""
   };
 }
 
@@ -81,7 +77,6 @@ async function loadAllGames() {
 function render() {
   let games = [...allGames];
 
-  /* Search */
   if (search) {
     const s = search.toLowerCase();
     games = games.filter(
@@ -90,7 +85,6 @@ function render() {
     );
   }
 
-  /* Result filter */
   if (filterResult.value !== "ALL") {
     games = games.filter(
       (g) =>
@@ -99,7 +93,6 @@ function render() {
     );
   }
 
-  /* Sort */
   games.sort((a, b) => {
     let x = a[sortField];
     let y = b[sortField];
@@ -109,7 +102,6 @@ function render() {
     return sortDir === "asc" ? (x > y ? 1 : -1) : (x < y ? 1 : -1);
   });
 
-  /* Paging */
   const totalPages = Math.max(1, Math.ceil(games.length / pageSize));
   if (page > totalPages) page = totalPages;
 
@@ -118,16 +110,15 @@ function render() {
 
   tbody.innerHTML = "";
   pageItems.forEach((g) => {
-    const ha = g.home_away || "-";
-    const pf = Number.isFinite(g.team_score) ? g.team_score : 0;
-    const pa = Number.isFinite(g.opponent_score) ? g.opponent_score : 0;
+    const pf = g.team_score;
+    const pa = g.opponent_score;
 
     tbody.innerHTML += `
       <tr>
         <td>${g.week}</td>
         <td>${g.team}</td>
         <td>${g.opponent}</td>
-        <td>${ha}</td>
+        <td>-</td>
         <td>${pf}</td>
         <td>${pa}</td>
         <td>${pf > pa ? "W" : "L"}</td>
@@ -162,43 +153,19 @@ window.editGame = (id) => {
   pointsFor.value = g.team_score;
   pointsAgainst.value = g.opponent_score;
 
-  // these exist in HTML even if backend doesn't store them
-  if (typeof homeAway !== "undefined") homeAway.value = g.home_away || "Home";
-  if (typeof result !== "undefined") result.value = g.team_score > g.opponent_score ? "W" : "L";
-
   switchView("formView");
 };
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  // Basic front-end guardrails (prevents empty strings becoming backend errors)
-  const teamVal = team.value.trim();
-  const oppVal = opponent.value.trim();
-
-  const weekVal = Number(week.value);
-  const pfVal = Number(pointsFor.value);
-  const paVal = Number(pointsAgainst.value);
-
-  if (!teamVal || !oppVal || !Number.isFinite(weekVal) || !Number.isFinite(pfVal) || !Number.isFinite(paVal)) {
-    alert("Please fill out all required fields with valid numbers.");
-    return;
-  }
-
-  // IMPORTANT: send BOTH snake_case and camelCase so either backend version accepts it.
   const payload = {
-    team: teamVal,
-    opponent: oppVal,
-    week: weekVal,
-
-    // snake_case
-    team_score: pfVal,
-    opponent_score: paVal,
-    image_url: "https://via.placeholder.com/300x150?text=Game",
-
-    // camelCase (for older backend versions)
-    teamScore: pfVal,
-    opponentScore: paVal,
+    team: team.value,
+    opponent: opponent.value,
+    week: Number(week.value),
+    teamScore: Number(pointsFor.value),
+    opponentScore: Number(pointsAgainst.value),
+    result: Number(pointsFor.value) > Number(pointsAgainst.value) ? "W" : "L",
     imageUrl: "https://via.placeholder.com/300x150?text=Game",
   };
 
@@ -212,9 +179,7 @@ form.addEventListener("submit", async (e) => {
   });
 
   if (!resp.ok) {
-    // show the REAL backend error so we never guess again
-    const text = await resp.text().catch(() => "");
-    alert(`Save failed (${resp.status}).\n\n${text || "Backend rejected data."}`);
+    alert("Save failed");
     return;
   }
 
