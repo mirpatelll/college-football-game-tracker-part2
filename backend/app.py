@@ -30,28 +30,30 @@ starter_games = [
     (3,"Alabama","LSU","Home",42,21,"W"),
     (3,"Michigan","Penn State","Away",30,20,"W"),
     (3,"Texas","Baylor","Home",41,17,"W"),
-] * 3   # makes 30
+] * 3   # = 30 games
 
-@app.route("/api/seed")
-def seed():
+cur = conn.cursor()
 
-    cur = conn.cursor()
+# Create table
+cur.execute("""
+CREATE TABLE IF NOT EXISTS games (
+    id TEXT PRIMARY KEY,
+    week INTEGER,
+    team TEXT,
+    opponent TEXT,
+    homeAway TEXT,
+    pointsFor INTEGER,
+    pointsAgainst INTEGER,
+    result TEXT
+);
+""")
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS games (
-        id TEXT PRIMARY KEY,
-        week INTEGER,
-        team TEXT,
-        opponent TEXT,
-        homeAway TEXT,
-        pointsFor INTEGER,
-        pointsAgainst INTEGER,
-        result TEXT
-    );
-    """)
+# Auto seed if empty
+cur.execute("SELECT COUNT(*) FROM games")
+count = cur.fetchone()[0]
 
-    cur.execute("DELETE FROM games")
-
+if count == 0:
+    print("Seeding database with 30 games...")
     for g in starter_games[:30]:
         cur.execute("""
         INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
@@ -59,11 +61,9 @@ def seed():
             str(uuid.uuid4()),
             g[0], g[1], g[2], g[3], g[4], g[5], g[6]
         ))
-
     conn.commit()
-    cur.close()
 
-    return jsonify({"status":"seeded 30 games"})
+cur.close()
 
 @app.route("/api/games")
 def get_games():
@@ -132,3 +132,4 @@ def stats():
 
 if __name__=="__main__":
     app.run()
+
