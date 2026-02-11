@@ -1,111 +1,112 @@
 const API_URL = "https://college-football-game-tracker-part2-1.onrender.com/api";
 
-let currentPage = 1;
 
-async function loadGames() {
-  const pageSize = document.getElementById("pageSize").value;
-  const search = document.getElementById("search").value;
+let page = 1;
+let editing = null;
 
-  const res = await fetch(`${API_URL}/games?page=${currentPage}&pageSize=${pageSize}&search=${search}`);
-  const data = await res.json();
+const gamesDiv = document.getElementById("games");
+const form = document.getElementById("form");
 
-  const tbody = document.getElementById("gamesBody");
-  tbody.innerHTML = "";
+const team = document.getElementById("team");
+const opponent = document.getElementById("opponent");
+const week = document.getElementById("week");
+const teamScore = document.getElementById("teamScore");
+const oppScore = document.getElementById("oppScore");
+const imageUrl = document.getElementById("imageUrl");
 
-  data.forEach(g => {
-    tbody.innerHTML += `
-      <tr>
-        <td>${g.week}</td>
-        <td>${g.team}</td>
-        <td>${g.opponent}</td>
-        <td>${g.pointsfor}</td>
-        <td>${g.pointsagainst}</td>
-        <td>${g.result}</td>
-        <td><img src="${g.imageurl}" height="40" /></td>
-        <td>
-          <button class="edit-btn" data-id="${g.id}">Edit</button>
-          <button class="delete-btn" data-id="${g.id}">Delete</button>
-        </td>
-      </tr>
-    `;
-  });
+const search = document.getElementById("search");
+const sort = document.getElementById("sort");
+const sizeSelect = document.getElementById("pageSize");
 
-  bindButtons();
+sizeSelect.value = getCookie("size") || 10;
+
+function setCookie(name,val){
+document.cookie=`${name}=${val};path=/`;
 }
 
-function bindButtons() {
-  document.querySelectorAll(".delete-btn").forEach(btn => {
-    btn.onclick = () => deleteGame(btn.dataset.id);
-  });
-
-  document.querySelectorAll(".edit-btn").forEach(btn => {
-    btn.onclick = () => editGame(btn.dataset.id);
-  });
+function getCookie(name){
+return document.cookie.split("; ").find(r=>r.startsWith(name+"="))?.split("=")[1];
 }
 
-async function deleteGame(id) {
-  await fetch(`${API_URL}/games/${id}`, { method: "DELETE" });
-  loadGames();
-}
+async function load(){
+setCookie("size",sizeSelect.value);
 
-async function editGame(id) {
-  const res = await fetch(`${API_URL}/games/${id}`);
-  const g = await res.json();
+const res = await fetch(`${API}/games?page=${page}&size=${sizeSelect.value}&search=${search.value}&sort=${sort.value}`);
+const data = await res.json();
 
-  document.getElementById("gameId").value = g.id;
-  document.getElementById("week").value = g.week;
-  document.getElementById("team").value = g.team;
-  document.getElementById("opponent").value = g.opponent;
-  document.getElementById("pointsfor").value = g.pointsfor;
-  document.getElementById("pointsagainst").value = g.pointsagainst;
-  document.getElementById("result").value = g.result;
-  document.getElementById("imageurl").value = g.imageurl;
-}
+gamesDiv.innerHTML="";
 
-document.getElementById("gameForm").addEventListener("submit", async e => {
-  e.preventDefault();
+data.items.forEach(g=>{
+const div=document.createElement("div");
+div.className="card";
 
-  const id = document.getElementById("gameId").value;
+div.innerHTML=`
+<img src="${g.image_url}" onerror="this.src='https://via.placeholder.com/120x80?text=No+Image'">
+<div>
+<b>${g.team}</b> vs ${g.opponent}<br>
+Week ${g.week}<br>
+${g.team_score} - ${g.opponent_score}<br>
+<button onclick="edit(${g.id})">Edit</button>
+<button onclick="del(${g.id})">Delete</button>
+</div>
+`;
 
-  const payload = {
-    week: week.value,
-    team: team.value,
-    opponent: opponent.value,
-    pointsfor: pointsfor.value,
-    pointsagainst: pointsagainst.value,
-    result: result.value,
-    imageurl: imageurl.value
-  };
-
-  if (id) {
-    await fetch(`${API_URL}/games/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-  } else {
-    await fetch(`${API_URL}/games`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-  }
-
-  gameForm.reset();
-  loadGames();
+gamesDiv.appendChild(div);
 });
 
-document.getElementById("next").onclick = () => {
-  currentPage++;
-  loadGames();
+document.getElementById("page").innerText = page;
+
+const stats = await fetch(`${API}/stats`).then(r=>r.json());
+document.getElementById("stats").innerText =
+`Total Games: ${stats.total} | Avg Score: ${stats.average_score}`;
+}
+
+window.edit = id=>{
+fetch(`${API}/games?page=1&size=1000`).then(r=>r.json()).then(d=>{
+const g=d.items.find(x=>x.id===id);
+editing=id;
+team.value=g.team;
+opponent.value=g.opponent;
+week.value=g.week;
+teamScore.value=g.team_score;
+oppScore.value=g.opponent_score;
+imageUrl.value=g.image_url;
+});
 };
 
-document.getElementById("prev").onclick = () => {
-  if (currentPage > 1) currentPage--;
-  loadGames();
+window.del = id=>{
+if(!confirm("Delete this game?")) return;
+fetch(`${API}/games/${id}`,{method:"DELETE"}).then(load);
 };
 
-document.getElementById("pageSize").onchange = loadGames;
-document.getElementById("search").oninput = loadGames;
+form.onsubmit=e=>{
+e.preventDefault();
 
-loadGames();
+const payload={
+team:team.value,
+opponent:opponent.value,
+week:+week.value,
+team_score:+teamScore.value,
+opponent_score:+oppScore.value,
+image_url:imageUrl.value
+};
+
+fetch(editing?`${API}/games/${editing}`:`${API}/games`,{
+method:editing?"PUT":"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(payload)
+}).then(()=>{
+editing=null;
+form.reset();
+load();
+});
+};
+
+document.getElementById("prev").onclick=()=>{if(page>1){page--;load();}};
+document.getElementById("next").onclick=()=>{page++;load();};
+
+search.oninput=()=>{page=1;load();};
+sort.onchange=()=>load();
+sizeSelect.onchange=()=>load();
+
+load();

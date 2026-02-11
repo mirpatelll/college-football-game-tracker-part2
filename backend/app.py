@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -7,151 +8,129 @@ app = Flask(__name__)
 CORS(app)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set. Export your Render External Database URL.")
 
-def conn():
-    return psycopg2.connect(DATABASE_URL)
+def get_db():
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
-# -------------------------------------------------
-# FORCE RESET + SCHEMA (NUCLEAR OPTION)
-# -------------------------------------------------
+PLACEHOLDER = "https://via.placeholder.com/120x80?text=No+Image"
 
-def hard_reset():
-    c = conn()
-    cur = c.cursor()
+# ------------------- LIST + SEARCH + SORT + PAGING -------------------
 
-    cur.execute("DROP TABLE IF EXISTS games")
+@app.get("/api/games")
+def list_games():
+    page = int(request.args.get("page", 1))
+    size = int(request.args.get("size", 10))
+    search = request.args.get("search", "")
+    sort = request.args.get("sort", "week")
 
-    cur.execute("""
-    CREATE TABLE games(
-        id SERIAL PRIMARY KEY,
-        week INT,
-        team TEXT,
-        opponent TEXT,
-        pointsfor INT,
-        pointsagainst INT,
-        result TEXT,
-        imageurl TEXT
-    )
-    """)
+    offset = (page - 1) * size
 
-    c.commit()
-    c.close()
+    conn = get_db()
+    cur = conn.cursor()
 
-# -------------------------------------------------
-# SEED
-# -------------------------------------------------
+    cur.execute(f"""
+        SELECT * FROM games
+        WHERE team ILIKE %s OR opponent ILIKE %s
+        ORDER BY {sort}
+        LIMIT %s OFFSET %s
+    """, (f"%{search}%", f"%{search}%", size, offset))
 
-def seed_games(n=30):
-    teams = [
-        "Clemson","Georgia","Alabama","Ohio State","Michigan",
-        "Texas","USC","Oregon","LSU","Florida State"
-    ]
-
-    rows = []
-
-    for i in range(n):
-        pf = 20 + (i % 25)
-        pa = 10 + (i % 20)
-        result = "Win" if pf > pa else "Loss"
-
-        rows.append((
-            i + 1,
-            teams[i % len(teams)],
-            teams[(i + 3) % len(teams)],
-            pf,
-            pa,
-            result,
-            "https://a.espncdn.com/i/teamlogos/ncaa/500/228.png"
-        ))
-
-    c = conn()
-    cur = c.cursor()
-
-    cur.executemany("""
-        INSERT INTO games
-        (week,team,opponent,pointsfor,pointsagainst,result,imageurl)
-        VALUES(%s,%s,%s,%s,%s,%s,%s)
-    """, rows)
-
-    c.commit()
-    c.close()
-
-# -------------------------------------------------
-# API
-# -------------------------------------------------
-
-@app.route("/api/reset", methods=["POST"])
-def api_reset():
-    hard_reset()
-    seed_games(30)
-    return jsonify({"ok": True})
-
-@app.route("/api/games")
-def games():
-    sort = request.args.get("sort","week")
-    order = request.args.get("order","asc")
-
-    if sort not in ["week","pointsfor","pointsagainst"]:
-        sort = "week"
-
-    c = conn()
-    cur = c.cursor()
-    cur.execute(f"SELECT * FROM games ORDER BY {sort} {order}")
     rows = cur.fetchall()
-    c.close()
 
-    out = []
-    for r in rows:
-        out.append({
-            "id": r[0],
-            "week": r[1],
-            "team": r[2],
-            "opponent": r[3],
-            "pointsfor": r[4],
-            "pointsagainst": r[5],
-            "result": r[6],
-            "imageurl": r[7]
-        })
-
-    return jsonify(out)
-
-@app.route("/api/games/<int:id>", methods=["PUT"])
-def update_game(id):
-    d = request.json
-
-    c = conn()
-    cur = c.cursor()
     cur.execute("""
-        UPDATE games
-        SET team=%s, opponent=%s, pointsfor=%s, pointsagainst=%s
-        WHERE id=%s
-    """,(d["team"], d["opponent"], d["pointsfor"], d["pointsagainst"], id))
+        SELECT COUNT(*) FROM games
+        WHERE team ILIKE %s OR opponent ILIKE %s
+    """, (f"%{search}%", f"%{search}%"))
 
-    c.commit()
-    c.close()
+    total = cur.fetchone()["count"]
 
-    return jsonify({"ok": True})
+    conn.close()
 
-@app.route("/api/stats")
+    return jsonify({"items": rows, "total": total})
+
+# ------------------- STATS -------------------
+
+@app.get("/api/stats")
 def stats():
-    c = conn()
-    cur = c.cursor()
+    conn = get_db()
+    cur = conn.cursor()
+
     cur.execute("SELECT COUNT(*) FROM games")
-    total = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM games WHERE result='Win'")
-    wins = cur.fetchone()[0]
-    c.close()
+    total = cur.fetchone()["count"]
 
-    return jsonify({"total": total, "wins": wins})
+    cur.execute("SELECT AVG(team_score) FROM games")
+    avg = cur.fetchone()["avg"]
 
-# -------------------------------------------------
-# BOOT (FORCE RESET EVERY START)
-# -------------------------------------------------
+    conn.close()
 
-hard_reset()
-seed_games(30)
+    return jsonify({
+        "total": total,
+        "average_score": round(avg or 0, 2)
+    })
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+# ------------------- CREATE -------------------
+
+@app.post("/api/games")
+def create_game():
+    data = request.json
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO games(team, opponent, week, team_score, opponent_score, image_url)
+        VALUES(%s,%s,%s,%s,%s,%s)
+    """, (
+        data["team"],
+        data["opponent"],
+        data["week"],
+        data["team_score"],
+        data["opponent_score"],
+        data.get("image_url") or PLACEHOLDER
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status":"ok"})
+
+# ------------------- UPDATE -------------------
+
+@app.put("/api/games/<int:id>")
+def update_game(id):
+    data = request.json
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE games SET team=%s, opponent=%s, week=%s,
+        team_score=%s, opponent_score=%s, image_url=%s
+        WHERE id=%s
+    """, (
+        data["team"],
+        data["opponent"],
+        data["week"],
+        data["team_score"],
+        data["opponent_score"],
+        data.get("image_url") or PLACEHOLDER,
+        id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status":"ok"})
+
+# ------------------- DELETE -------------------
+
+@app.delete("/api/games/<int:id>")
+def delete_game(id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM games WHERE id=%s", (id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status":"deleted"})

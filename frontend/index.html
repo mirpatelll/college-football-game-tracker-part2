@@ -1,133 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>College Football Game Tracker</title>
-
-  <link rel="stylesheet" href="styles.css" />
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-    }
-
-    header {
-      background: #1f3c88;
-      color: white;
-      padding: 15px;
-      font-size: 22px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 30px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-
-    th {
-      background: #eee;
-    }
-
-    img {
-      height: 40px;
-    }
-
-    button {
-      padding: 5px 10px;
-      margin: 2px;
-      cursor: pointer;
-    }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    form input {
-      margin: 5px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>College Football Tracker</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-<header>
-  College Football Game Tracker
-</header>
+<h1>College Football Game Tracker</h1>
 
-<div class="container">
+<div class="controls">
+<input id="search" placeholder="Search team...">
 
-  <h2>All Games</h2>
+<select id="pageSize">
+<option>5</option>
+<option selected>10</option>
+<option>20</option>
+<option>50</option>
+</select>
 
-  <div class="controls">
-    <input id="search" placeholder="Search team/opponent">
+<select id="sort">
+<option value="week">Week</option>
+<option value="team">Team</option>
+</select>
+</div>
 
-    <select id="pageSize">
-      <option value="10">10 per page</option>
-      <option value="20">20 per page</option>
-      <option value="50">50 per page</option>
-    </select>
+<div id="stats"></div>
 
-    <button id="prev">Prev</button>
-    <button id="next">Next</button>
-  </div>
+<div id="games"></div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Week</th>
-        <th>Team</th>
-        <th>Opponent</th>
-        <th>PF</th>
-        <th>PA</th>
-        <th>Result</th>
-        <th>Logo</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
+<h2>Add / Edit Game</h2>
 
-    <tbody id="gamesBody"></tbody>
-  </table>
+<form id="form">
+<input id="team" placeholder="Team" required>
+<input id="opponent" placeholder="Opponent" required>
+<input id="week" type="number" placeholder="Week" required>
+<input id="teamScore" type="number" placeholder="Team Score" required>
+<input id="oppScore" type="number" placeholder="Opponent Score" required>
+<input id="imageUrl" placeholder="Image URL">
 
-  <hr>
+<button type="submit">Save</button>
+</form>
 
-  <h3>Add / Edit Game</h3>
-
-  <form id="gameForm">
-
-    <input type="hidden" id="gameId">
-
-    <input id="week" placeholder="Week" required>
-    <input id="team" placeholder="Team" required>
-    <input id="opponent" placeholder="Opponent" required>
-    <input id="pointsfor" placeholder="Points For" required>
-    <input id="pointsagainst" placeholder="Points Against" required>
-    <input id="result" placeholder="Result" required>
-    <input id="imageurl" placeholder="Image URL" required>
-
-    <br><br>
-
-    <button type="submit">Save</button>
-  </form>
-
+<div class="pager">
+<button id="prev">Prev</button>
+<span id="page"></span>
+<button id="next">Next</button>
 </div>
 
 <script src="app.js"></script>
-
 </body>
 </html>
