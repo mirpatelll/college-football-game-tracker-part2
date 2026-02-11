@@ -41,10 +41,10 @@ def stats():
     cur.execute("SELECT COUNT(*)::int AS total FROM games")
     total = cur.fetchone()["total"]
 
-    cur.execute("SELECT AVG(pf)::float AS avg_pf FROM games")
+    cur.execute("SELECT AVG(pointsfor)::float AS avg_pf FROM games")
     avg_pf = cur.fetchone()["avg_pf"] or 0
 
-    cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE pf > pa")
+    cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE pointsfor > pointsagainst")
     wins = cur.fetchone()["wins"]
 
     conn.close()
@@ -65,18 +65,19 @@ def create_game():
     team = d.get("team", "").strip()
     opponent = d.get("opponent", "").strip()
     week = int(d.get("week"))
-    pf = int(d.get("teamScore") or d.get("pf"))
-    pa = int(d.get("opponentScore") or d.get("pa"))
-    image_url = d.get("imageUrl") or PLACEHOLDER
+    pointsfor = int(d.get("teamScore"))
+    pointsagainst = int(d.get("opponentScore"))
+    result = d.get("result", "")
+    imageurl = d.get("imageUrl") or PLACEHOLDER
 
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO games (team, opponent, week, pf, pa, image_url)
-        VALUES (%s,%s,%s,%s,%s,%s)
+        INSERT INTO games (team, opponent, week, pointsfor, pointsagainst, result, imageurl)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
-    """, (team, opponent, week, pf, pa, image_url))
+    """, (team, opponent, week, pointsfor, pointsagainst, result, imageurl))
 
     new_id = cur.fetchone()["id"]
     conn.commit()
@@ -93,9 +94,10 @@ def update_game(gid):
     team = d.get("team", "").strip()
     opponent = d.get("opponent", "").strip()
     week = int(d.get("week"))
-    pf = int(d.get("teamScore") or d.get("pf"))
-    pa = int(d.get("opponentScore") or d.get("pa"))
-    image_url = d.get("imageUrl") or PLACEHOLDER
+    pointsfor = int(d.get("teamScore"))
+    pointsagainst = int(d.get("opponentScore"))
+    result = d.get("result", "")
+    imageurl = d.get("imageUrl") or PLACEHOLDER
 
     conn = get_db()
     cur = conn.cursor()
@@ -105,11 +107,12 @@ def update_game(gid):
         SET team=%s,
             opponent=%s,
             week=%s,
-            pf=%s,
-            pa=%s,
-            image_url=%s
+            pointsfor=%s,
+            pointsagainst=%s,
+            result=%s,
+            imageurl=%s
         WHERE id=%s
-    """, (team, opponent, week, pf, pa, image_url, gid))
+    """, (team, opponent, week, pointsfor, pointsagainst, result, imageurl, gid))
 
     conn.commit()
     conn.close()
