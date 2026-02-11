@@ -4,17 +4,7 @@ let currentPage = 1;
 let pageSize = 10;
 let editingId = null;
 
-const tbody = document.getElementById("gamesTbody");
-const pageLabel = document.getElementById("pageLabel");
-
-const week = document.getElementById("week");
-const team = document.getElementById("team");
-const opponent = document.getElementById("opponent");
-const homeAway = document.getElementById("homeAway");
-const pointsFor = document.getElementById("pointsFor");
-const pointsAgainst = document.getElementById("pointsAgainst");
-const result = document.getElementById("result");
-
+/* ---------------- LOAD ---------------- */
 async function loadGames(page = 1) {
   currentPage = page;
 
@@ -22,15 +12,16 @@ async function loadGames(page = 1) {
   const data = await res.json();
 
   renderTable(data.items);
-  pageLabel.innerText = `Page ${currentPage}`;
+  renderPagination(data.total);
 }
 
+/* ---------------- TABLE ---------------- */
 function renderTable(games) {
+  const tbody = document.getElementById("gamesTbody");
   tbody.innerHTML = "";
 
   games.forEach(g => {
     const tr = document.createElement("tr");
-
     tr.innerHTML = `
       <td>${g.week}</td>
       <td>${g.team}</td>
@@ -39,47 +30,61 @@ function renderTable(games) {
       <td>${g.pointsFor}</td>
       <td>${g.pointsAgainst}</td>
       <td>${g.result}</td>
-      <td>
-        <button onclick="editGame('${g.id}')">Edit</button>
-        <button onclick="deleteGame('${g.id}')">Delete</button>
+      <td class="right">
+        <button class="btn btn-ghost" onclick="editGame('${g.id}')">Edit</button>
+        <button class="btn btn-ghost" onclick="deleteGame('${g.id}')">Delete</button>
       </td>
     `;
-
     tbody.appendChild(tr);
   });
 }
 
+/* ---------------- PAGING ---------------- */
+function renderPagination(total) {
+  document.getElementById("pageLabel").innerText =
+    `Page ${currentPage} of ${Math.ceil(total / pageSize)}`;
+
+  document.getElementById("countLabel").innerText =
+    `${total} total games`;
+}
+
+/* ---------------- EDIT ---------------- */
 async function editGame(id) {
   const res = await fetch(`${API_URL}/games/${id}`);
   const g = await res.json();
 
   editingId = id;
 
-  week.value = g.week;
+  document.getElementById("formTitle").innerText = "Edit Game";
+
   team.value = g.team;
   opponent.value = g.opponent;
   homeAway.value = g.homeAway;
+  week.value = g.week;
   pointsFor.value = g.pointsFor;
   pointsAgainst.value = g.pointsAgainst;
   result.value = g.result;
 
-  document.getElementById("formView").classList.add("active");
-  document.getElementById("listView").classList.remove("active");
+  switchView("formView");
 }
 
+/* ---------------- DELETE ---------------- */
 async function deleteGame(id) {
+  if (!confirm("Delete this game?")) return;
+
   await fetch(`${API_URL}/games/${id}`, { method: "DELETE" });
   loadGames(currentPage);
 }
 
-document.getElementById("saveBtn").onclick = async (e) => {
+/* ---------------- SAVE ---------------- */
+document.getElementById("gameForm").addEventListener("submit", async e => {
   e.preventDefault();
 
   const game = {
-    week: parseInt(week.value),
     team: team.value,
     opponent: opponent.value,
     homeAway: homeAway.value,
+    week: parseInt(week.value),
     pointsFor: parseInt(pointsFor.value),
     pointsAgainst: parseInt(pointsAgainst.value),
     result: result.value
@@ -91,7 +96,6 @@ document.getElementById("saveBtn").onclick = async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(game)
     });
-
     editingId = null;
   } else {
     await fetch(`${API_URL}/games`, {
@@ -101,9 +105,12 @@ document.getElementById("saveBtn").onclick = async (e) => {
     });
   }
 
+  document.getElementById("gameForm").reset();
+  switchView("listView");
   loadGames(currentPage);
-};
+});
 
+/* ---------------- PAGING BUTTONS ---------------- */
 document.getElementById("prevPageBtn").onclick = () => {
   if (currentPage > 1) loadGames(currentPage - 1);
 };
@@ -112,4 +119,24 @@ document.getElementById("nextPageBtn").onclick = () => {
   loadGames(currentPage + 1);
 };
 
+/* ---------------- PAGE SIZE ---------------- */
+document.getElementById("pageSizeSelect").onchange = e => {
+  pageSize = parseInt(e.target.value);
+  loadGames(1);
+};
+
+/* ---------------- TABS ---------------- */
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.onclick = () => switchView(btn.dataset.view);
+});
+
+function switchView(viewId) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+
+  document.getElementById(viewId).classList.add("active");
+  document.querySelector(`[data-view="${viewId}"]`).classList.add("active");
+}
+
+/* ---------------- INIT ---------------- */
 loadGames();
