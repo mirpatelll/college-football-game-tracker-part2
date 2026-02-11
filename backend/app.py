@@ -1,103 +1,90 @@
 import os
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-PLACEHOLDER = "https://via.placeholder.com/300x150?text=Game"
-
 
 def get_db():
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    return psycopg2.connect(DATABASE_URL, sslmode="require")
 
+# ---------------- GET ALL ----------------
 
-@app.before_request
-def handle_options():
-    if request.method == "OPTIONS":
-        return "", 200
-
-
-# ---------- LIST ----------
-@app.route("/api/games", methods=["GET", "OPTIONS"])
-def list_games():
+@app.route("/api/games", methods=["GET"])
+def get_games():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM games ORDER BY week, id")
+
+    cur.execute("""
+        SELECT id, week, team, opponent, pointsfor, pointsagainst, imageurl
+        FROM games
+        ORDER BY week
+    """)
+
     rows = cur.fetchall()
-    conn.close()
-    return jsonify({"items": rows})
 
+    items = []
+    for r in rows:
+        items.append({
+            "id": r[0],
+            "week": r[1],
+            "team": r[2],
+            "opponent": r[3],
+            "team_score": r[4],
+            "opponent_score": r[5],
+            "image_url": r[6]
+        })
 
-# ---------- STATS ----------
-@app.route("/api/stats", methods=["GET", "OPTIONS"])
-def stats():
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("SELECT COUNT(*)::int AS total FROM games")
-    total = cur.fetchone()["total"]
-
-    cur.execute("SELECT AVG(pointsfor)::float AS avg_pf FROM games")
-    avg_pf = cur.fetchone()["avg_pf"] or 0
-
-    cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE pointsfor > pointsagainst")
-    wins = cur.fetchone()["wins"]
-
+    cur.close()
     conn.close()
 
-    return jsonify({
-        "total": total,
-        "wins": wins,
-        "losses": total - wins,
-        "avg_pf": round(avg_pf, 2)
-    })
+    return jsonify({"items": items})
 
+# ---------------- ADD ----------------
 
-# ---------- CREATE ----------
-@app.route("/api/games", methods=["POST", "OPTIONS"])
-def create_game():
-    d = request.get_json() or {}
+@app.route("/api/games", methods=["POST"])
+def add_game():
+    d = request.json
 
-    team = d.get("team", "").strip()
-    opponent = d.get("opponent", "").strip()
-    week = int(d.get("week"))
-    pointsfor = int(d.get("teamScore"))
-    pointsagainst = int(d.get("opponentScore"))
-    result = d.get("result", "")
-    imageurl = d.get("imageUrl") or PLACEHOLDER
+    team = d.get("team")
+    opponent = d.get("opponent")
+    week = d.get("week")
+    pf = d.get("team_score")
+    pa = d.get("opponent_score")
+    image = d.get("image_url", "")
 
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO games (team, opponent, week, pointsfor, pointsagainst, result, imageurl)
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
+        INSERT INTO games(team, opponent, week, pointsfor, pointsagainst, imageurl)
+        VALUES (%s,%s,%s,%s,%s,%s)
         RETURNING id
-    """, (team, opponent, week, pointsfor, pointsagainst, result, imageurl))
+    """, (team, opponent, week, pf, pa, image))
 
-    new_id = cur.fetchone()["id"]
+    gid = cur.fetchone()[0]
+
     conn.commit()
+    cur.close()
     conn.close()
 
-    return jsonify({"id": new_id}), 201
+    return jsonify({"id": gid})
 
+# ---------------- UPDATE ----------------
 
-# ---------- UPDATE ----------
-@app.route("/api/games/<int:gid>", methods=["PUT", "OPTIONS"])
+@app.route("/api/games/<int:gid>", methods=["PUT"])
 def update_game(gid):
-    d = request.get_json() or {}
+    d = request.json
 
-    team = d.get("team", "").strip()
-    opponent = d.get("opponent", "").strip()
-    week = int(d.get("week"))
-    pointsfor = int(d.get("teamScore"))
-    pointsagainst = int(d.get("opponentScore"))
-    result = d.get("result", "")
-    imageurl = d.get("imageUrl") or PLACEHOLDER
+    team = d.get("team")
+    opponent = d.get("opponent")
+    week = d.get("week")
+    pf = d.get("team_score")
+    pa = d.get("opponent_score")
+    image = d.get("image_url", "")
 
     conn = get_db()
     cur = conn.cursor()
@@ -109,27 +96,32 @@ def update_game(gid):
             week=%s,
             pointsfor=%s,
             pointsagainst=%s,
-            result=%s,
             imageurl=%s
         WHERE id=%s
-    """, (team, opponent, week, pointsfor, pointsagainst, result, imageurl, gid))
+    """, (team, opponent, week, pf, pa, image, gid))
 
     conn.commit()
+    cur.close()
     conn.close()
 
     return jsonify({"status": "ok"})
 
+# ---------------- DELETE ----------------
 
-# ---------- DELETE ----------
-@app.route("/api/games/<int:gid>", methods=["DELETE", "OPTIONS"])
+@app.route("/api/games/<int:gid>", methods=["DELETE"])
 def delete_game(gid):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("DELETE FROM games WHERE id=%s", (gid,))
+
     conn.commit()
+    cur.close()
     conn.close()
+
     return jsonify({"status": "deleted"})
 
+# ---------------- MAIN ----------------
 
 if __name__ == "__main__":
     app.run()
