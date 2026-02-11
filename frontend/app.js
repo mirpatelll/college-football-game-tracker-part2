@@ -1,4 +1,5 @@
-const API_URL = "https://college-football-game-tracker-part2-1.onrender.com/api";
+const API = "https://college-football-game-tracker-part2-1.onrender.com/api";
+
 
 
 let page=1;
