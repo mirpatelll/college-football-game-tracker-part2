@@ -1,6 +1,6 @@
 /* CONFIG */
 
-const API_BASE = "https://college-football-game-tracker-part2.onrender.com/api";
+const API_BASE = "https://college-football-game-tracker-part2-1.onrender.com/api";
 
 /* DOM */
 
