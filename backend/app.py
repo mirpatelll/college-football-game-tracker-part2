@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 PORT = int(os.environ.get("PORT", 5000))
@@ -14,30 +14,28 @@ PLACEHOLDER = "https://via.placeholder.com/300x150?text=Game"
 
 
 def get_db():
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL missing")
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
 @app.before_request
-def options_fix():
+def options():
     if request.method == "OPTIONS":
         return "", 200
 
 
-# ---------------- LIST ----------------
+# ---------- LIST ----------
 @app.route("/api/games", methods=["GET"])
 def list_games():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM games ORDER BY week,id")
+    cur.execute("SELECT * FROM games ORDER BY week, game_id")
     rows = cur.fetchall()
     cur.close()
     conn.close()
     return jsonify({"items": rows})
 
 
-# ---------------- STATS ----------------
+# ---------- STATS ----------
 @app.route("/api/stats", methods=["GET"])
 def stats():
     conn = get_db()
@@ -47,42 +45,22 @@ def stats():
     total = cur.fetchone()["total"]
 
     cur.execute("SELECT AVG(team_score)::float AS avg FROM games")
-    avg_pf = cur.fetchone()["avg"] or 0
+    avg = cur.fetchone()["avg"] or 0
 
-    cur.execute("""
-        SELECT COUNT(*)::int AS wins
-        FROM games
-        WHERE team_score > opponent_score
-    """)
+    cur.execute("SELECT COUNT(*)::int AS wins FROM games WHERE team_score > opponent_score")
     wins = cur.fetchone()["wins"]
     losses = total - wins
 
     cur.close()
     conn.close()
 
-    return jsonify({
-        "total": total,
-        "wins": wins,
-        "losses": losses,
-        "avg_pf": round(avg_pf, 2)
-    })
+    return jsonify({"total": total, "wins": wins, "losses": losses, "avg_pf": round(avg,2)})
 
 
-# ---------------- CREATE ----------------
+# ---------- CREATE ----------
 @app.route("/api/games", methods=["POST"])
-def create_game():
-    data = request.json or {}
-
-    team = (data.get("team") or "").strip()
-    opponent = (data.get("opponent") or "").strip()
-    home_away = data.get("homeAway") or data.get("home_away") or "Home"
-    week = data.get("week")
-    team_score = data.get("teamScore", data.get("team_score"))
-    opponent_score = data.get("opponentScore", data.get("opponent_score"))
-    image_url = data.get("imageUrl", data.get("image_url")) or PLACEHOLDER
-
-    if not team or not opponent or week is None:
-        return jsonify({"error": "Missing fields"}), 400
+def create():
+    d = request.json
 
     conn = get_db()
     cur = conn.cursor()
@@ -90,96 +68,78 @@ def create_game():
     cur.execute("""
         INSERT INTO games(team,opponent,home_away,week,team_score,opponent_score,image_url)
         VALUES(%s,%s,%s,%s,%s,%s,%s)
-        RETURNING id
-    """, (
-        team,
-        opponent,
-        home_away,
-        int(week),
-        int(team_score),
-        int(opponent_score),
-        image_url
+        RETURNING game_id
+    """,(
+        d["team"],
+        d["opponent"],
+        d.get("homeAway","Home"),
+        int(d["week"]),
+        int(d["teamScore"]),
+        int(d["opponentScore"]),
+        d.get("imageUrl",PLACEHOLDER)
     ))
 
-    new_id = cur.fetchone()["id"]
-
+    gid = cur.fetchone()["game_id"]
     conn.commit()
     cur.close()
     conn.close()
 
-    return jsonify({"id": new_id}), 201
+    return jsonify({"game_id":gid})
 
 
-# ---------------- UPDATE ----------------
-@app.route("/api/games/<int:game_id>", methods=["PUT"])
-def update_game(game_id):
-    data = request.json or {}
-
-    team = (data.get("team") or "").strip()
-    opponent = (data.get("opponent") or "").strip()
-    home_away = data.get("homeAway") or data.get("home_away") or "Home"
-    week = data.get("week")
-    team_score = data.get("teamScore", data.get("team_score"))
-    opponent_score = data.get("opponentScore", data.get("opponent_score"))
-    image_url = data.get("imageUrl", data.get("image_url")) or PLACEHOLDER
-
-    if not team or not opponent or week is None:
-        return jsonify({"error": "Missing fields"}), 400
+# ---------- UPDATE ----------
+@app.route("/api/games/<int:gid>", methods=["PUT"])
+def update(gid):
+    d = request.json
 
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
         UPDATE games
-        SET team=%s,
-            opponent=%s,
-            home_away=%s,
-            week=%s,
-            team_score=%s,
-            opponent_score=%s,
-            image_url=%s
-        WHERE id=%s
-        RETURNING id
-    """, (
-        team,
-        opponent,
-        home_away,
-        int(week),
-        int(team_score),
-        int(opponent_score),
-        image_url,
-        game_id
+        SET team=%s, opponent=%s, home_away=%s, week=%s,
+            team_score=%s, opponent_score=%s, image_url=%s
+        WHERE game_id=%s
+        RETURNING game_id
+    """,(
+        d["team"],
+        d["opponent"],
+        d.get("homeAway","Home"),
+        int(d["week"]),
+        int(d["teamScore"]),
+        int(d["opponentScore"]),
+        d.get("imageUrl",PLACEHOLDER),
+        gid
     ))
 
-    updated = cur.fetchone()
+    row = cur.fetchone()
 
     conn.commit()
     cur.close()
     conn.close()
 
-    if not updated:
-        return jsonify({"error": "Not found"}), 404
+    if not row:
+        return jsonify({"error":"not found"}),404
 
-    return jsonify({"status": "ok"})
+    return jsonify({"ok":True})
 
 
-# ---------------- DELETE ----------------
-@app.route("/api/games/<int:game_id>", methods=["DELETE"])
-def delete_game(game_id):
+# ---------- DELETE ----------
+@app.route("/api/games/<int:gid>", methods=["DELETE"])
+def delete(gid):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM games WHERE id=%s RETURNING id", (game_id,))
-    deleted = cur.fetchone()
+    cur.execute("DELETE FROM games WHERE game_id=%s RETURNING game_id",(gid,))
+    row = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
 
-    if not deleted:
-        return jsonify({"error": "Not found"}), 404
+    if not row:
+        return jsonify({"error":"not found"}),404
 
-    return jsonify({"status": "deleted"})
+    return jsonify({"deleted":True})
 
 
-# ---------------- START ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PORT)
