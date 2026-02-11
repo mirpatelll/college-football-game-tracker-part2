@@ -4,6 +4,17 @@ let currentPage = 1;
 let pageSize = 10;
 let editingId = null;
 
+const tbody = document.getElementById("gamesTbody");
+const pageLabel = document.getElementById("pageLabel");
+
+const week = document.getElementById("week");
+const team = document.getElementById("team");
+const opponent = document.getElementById("opponent");
+const homeAway = document.getElementById("homeAway");
+const pointsFor = document.getElementById("pointsFor");
+const pointsAgainst = document.getElementById("pointsAgainst");
+const result = document.getElementById("result");
+
 async function loadGames(page = 1) {
   currentPage = page;
 
@@ -11,11 +22,10 @@ async function loadGames(page = 1) {
   const data = await res.json();
 
   renderTable(data.items);
-  renderPagination(data.total);
+  pageLabel.innerText = `Page ${currentPage}`;
 }
 
 function renderTable(games) {
-  const tbody = document.querySelector("tbody");
   tbody.innerHTML = "";
 
   games.forEach(g => {
@@ -39,11 +49,6 @@ function renderTable(games) {
   });
 }
 
-function renderPagination(total) {
-  document.getElementById("pageInfo").innerText =
-    `Page ${currentPage} of ${Math.ceil(total/pageSize)}`;
-}
-
 async function editGame(id) {
   const res = await fetch(`${API_URL}/games/${id}`);
   const g = await res.json();
@@ -54,9 +59,12 @@ async function editGame(id) {
   team.value = g.team;
   opponent.value = g.opponent;
   homeAway.value = g.homeAway;
-  pf.value = g.pointsFor;
-  pa.value = g.pointsAgainst;
+  pointsFor.value = g.pointsFor;
+  pointsAgainst.value = g.pointsAgainst;
   result.value = g.result;
+
+  document.getElementById("formView").classList.add("active");
+  document.getElementById("listView").classList.remove("active");
 }
 
 async function deleteGame(id) {
@@ -64,15 +72,16 @@ async function deleteGame(id) {
   loadGames(currentPage);
 }
 
-document.getElementById("saveBtn").onclick = async () => {
+document.getElementById("saveBtn").onclick = async (e) => {
+  e.preventDefault();
 
   const game = {
     week: parseInt(week.value),
     team: team.value,
     opponent: opponent.value,
     homeAway: homeAway.value,
-    pointsFor: parseInt(pf.value),
-    pointsAgainst: parseInt(pa.value),
+    pointsFor: parseInt(pointsFor.value),
+    pointsAgainst: parseInt(pointsAgainst.value),
     result: result.value
   };
 
@@ -95,11 +104,11 @@ document.getElementById("saveBtn").onclick = async () => {
   loadGames(currentPage);
 };
 
-document.getElementById("prevBtn").onclick = () => {
+document.getElementById("prevPageBtn").onclick = () => {
   if (currentPage > 1) loadGames(currentPage - 1);
 };
 
-document.getElementById("nextBtn").onclick = () => {
+document.getElementById("nextPageBtn").onclick = () => {
   loadGames(currentPage + 1);
 };
 
