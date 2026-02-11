@@ -1,57 +1,104 @@
 const API = "https://college-football-game-tracker-part2-1.onrender.com/api";
 
+let allGames = [];
 let page = 1;
-let pageSize = getCookie("pageSize") || 10;
+let pageSize = Number(getCookie("pageSize")) || 10;
 let search = "";
-let sort = "week";
+let sortField = "week";
+let sortDir = "asc";
 let editingId = null;
 
+/* DOM */
 const tbody = document.getElementById("gamesTbody");
 const pageLabel = document.getElementById("pageLabel");
 const searchInput = document.getElementById("searchInput");
+const filterResult = document.getElementById("filterResult");
 const prevBtn = document.getElementById("prevPageBtn");
 const nextBtn = document.getElementById("nextPageBtn");
 const form = document.getElementById("gameForm");
 
-/* Create page size + sort controls dynamically */
+/* Inject controls */
 document.querySelector(".tools").insertAdjacentHTML("beforeend", `
 <select id="sortSelect" class="input">
-<option value="week">Sort: Week</option>
-<option value="team">Sort: Team</option>
+  <option value="week">Sort: Week</option>
+  <option value="team">Sort: Team</option>
 </select>
 
 <select id="pageSizeSelect" class="input">
-<option>5</option>
-<option>10</option>
-<option>20</option>
-<option>50</option>
+  <option>5</option>
+  <option>10</option>
+  <option>20</option>
+  <option>50</option>
 </select>
 `);
 
 const sortSelect = document.getElementById("sortSelect");
 const pageSizeSelect = document.getElementById("pageSizeSelect");
-
 pageSizeSelect.value = pageSize;
-sortSelect.value = sort;
 
-function setCookie(n,v){document.cookie=`${n}=${v};path=/`;}
-function getCookie(n){return document.cookie.split("; ").find(r=>r.startsWith(n+"="))?.split("=")[1];}
+/* Cookies */
+function setCookie(n, v) {
+  document.cookie = `${n}=${v};path=/`;
+}
+function getCookie(n) {
+  return document.cookie
+    .split("; ")
+    .find(r => r.startsWith(n + "="))
+    ?.split("=")[1];
+}
 
-async function loadGames() {
-  setCookie("pageSize", pageSize);
-
-  const res = await fetch(`${API}/games?page=${page}&size=${pageSize}&search=${search}&sort=${sort}`);
+/* Load ALL games once */
+async function loadAllGames() {
+  const res = await fetch(`${API}/games`);
   const data = await res.json();
+  allGames = data.items || [];
+  render();
+}
+
+/* Render with filter/sort/paging */
+function render() {
+  let games = [...allGames];
+
+  /* Search */
+  if (search) {
+    const s = search.toLowerCase();
+    games = games.filter(g =>
+      g.team.toLowerCase().includes(s) ||
+      g.opponent.toLowerCase().includes(s)
+    );
+  }
+
+  /* Result filter */
+  if (filterResult.value !== "ALL") {
+    games = games.filter(g =>
+      (g.team_score > g.opponent_score ? "W" : "L") === filterResult.value
+    );
+  }
+
+  /* Sort */
+  games.sort((a, b) => {
+    let x = a[sortField];
+    let y = b[sortField];
+    if (typeof x === "string") x = x.toLowerCase();
+    if (typeof y === "string") y = y.toLowerCase();
+    return sortDir === "asc" ? x > y ? 1 : -1 : x < y ? 1 : -1;
+  });
+
+  /* Paging */
+  const totalPages = Math.max(1, Math.ceil(games.length / pageSize));
+  if (page > totalPages) page = totalPages;
+
+  const start = (page - 1) * pageSize;
+  const pageItems = games.slice(start, start + pageSize);
 
   tbody.innerHTML = "";
-
-  data.items.forEach(g => {
+  pageItems.forEach(g => {
     tbody.innerHTML += `
       <tr>
         <td>${g.week}</td>
         <td>${g.team}</td>
         <td>${g.opponent}</td>
-        <td>${g.home_away || ""}</td>
+        <td>${g.home_away}</td>
         <td>${g.team_score}</td>
         <td>${g.opponent_score}</td>
         <td>${g.team_score > g.opponent_score ? "W" : "L"}</td>
@@ -63,20 +110,19 @@ async function loadGames() {
     `;
   });
 
-  pageLabel.innerText = `Page ${page}`;
+  pageLabel.innerText = `Page ${page} of ${totalPages}`;
+  setCookie("pageSize", pageSize);
 }
 
+/* CRUD */
 window.delGame = async id => {
   if (!confirm("Delete this game?")) return;
   await fetch(`${API}/games/${id}`, { method: "DELETE" });
-  loadGames();
+  await loadAllGames();
 };
 
-window.editGame = async id => {
-  const res = await fetch(`${API}/games?page=1&size=500`);
-  const data = await res.json();
-  const g = data.items.find(x => x.id === id);
-
+window.editGame = id => {
+  const g = allGames.find(x => x.id === id);
   editingId = id;
 
   team.value = g.team;
@@ -84,6 +130,8 @@ window.editGame = async id => {
   week.value = g.week;
   pointsFor.value = g.team_score;
   pointsAgainst.value = g.opponent_score;
+  homeAway.value = g.home_away;
+  result.value = g.team_score > g.opponent_score ? "W" : "L";
 
   switchView("formView");
 };
@@ -97,63 +145,53 @@ form.addEventListener("submit", async e => {
     week: Number(week.value),
     team_score: Number(pointsFor.value),
     opponent_score: Number(pointsAgainst.value),
+    home_away: homeAway.value,
+    result: result.value,
     image_url: "https://via.placeholder.com/300x150?text=Game"
   };
 
-  await fetch(editingId ? `${API}/games/${editingId}` : `${API}/games`, {
-    method: editingId ? "PUT" : "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  const resp = await fetch(
+    editingId ? `${API}/games/${editingId}` : `${API}/games`,
+    {
+      method: editingId ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  if (!resp.ok) {
+    alert("Save failed – backend rejected data.");
+    return;
+  }
 
   editingId = null;
   form.reset();
   switchView("listView");
-  loadGames();
+  await loadAllGames();
 });
 
-/* Paging */
-prevBtn.onclick = () => {
-  if (page > 1) {
-    page--;
-    loadGames();
-  }
-};
+/* Controls */
+prevBtn.onclick = () => { if (page > 1) { page--; render(); } };
+nextBtn.onclick = () => { page++; render(); };
 
-nextBtn.onclick = () => {
-  page++;
-  loadGames();
-};
+searchInput.oninput = e => { search = e.target.value; page = 1; render(); };
+filterResult.onchange = () => { page = 1; render(); };
 
-/* Search */
-searchInput.oninput = e => {
-  search = e.target.value;
-  page = 1;
-  loadGames();
-};
-
-/* Sort */
-sortSelect.onchange = e => {
-  sort = e.target.value;
-  page = 1;
-  loadGames();
-};
-
-/* Page Size */
+sortSelect.onchange = e => { sortField = e.target.value; page = 1; render(); };
 pageSizeSelect.onchange = e => {
-  pageSize = e.target.value;
+  pageSize = Number(e.target.value);
   page = 1;
-  loadGames();
+  render();
 };
 
 /* Tabs */
 document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => switchView(btn.dataset.view);
 });
-
 function switchView(id) {
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
 
-loadGames();
+/* Init */
+loadAllGames();
