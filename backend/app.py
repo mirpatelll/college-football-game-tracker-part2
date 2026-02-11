@@ -51,7 +51,9 @@ def auto_seed():
     cur.execute("SELECT COUNT(*) FROM games")
     count = cur.fetchone()[0]
 
-    if count == 0:
+    if count < 30:
+        cur.execute("DELETE FROM games")
+
         for g in starter_games[:30]:
             cur.execute("""
             INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
@@ -59,6 +61,7 @@ def auto_seed():
                 str(uuid.uuid4()),
                 g[0], g[1], g[2], g[3], g[4], g[5], g[6]
             ))
+
         conn.commit()
 
     cur.close()
@@ -94,6 +97,27 @@ def get_games():
 
     return jsonify({"items":games,"total":total})
 
+@app.route("/api/games/<id>")
+def get_one_game(id):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM games WHERE id=%s",(id,))
+    r = cur.fetchone()
+    cur.close()
+
+    if not r:
+        return jsonify({"error":"Not found"}),404
+
+    return jsonify({
+        "id":r[0],
+        "week":r[1],
+        "team":r[2],
+        "opponent":r[3],
+        "homeAway":r[4],
+        "pointsFor":r[5],
+        "pointsAgainst":r[6],
+        "result":r[7]
+    })
+
 @app.route("/api/games", methods=["POST"])
 def add_game():
     d=request.json
@@ -102,7 +126,8 @@ def add_game():
 
     cur.execute("""
     INSERT INTO games VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-    """,(gid,d["week"],d["team"],d["opponent"],d["homeAway"],d["pointsFor"],d["pointsAgainst"],d["result"]))
+    """,(gid,d["week"],d["team"],d["opponent"],d["homeAway"],
+         d["pointsFor"],d["pointsAgainst"],d["result"]))
 
     conn.commit()
     cur.close()
@@ -134,8 +159,9 @@ def delete_game(id):
 @app.route("/api/stats")
 def stats():
     cur=conn.cursor()
-    cur.execute("SELECT COUNT(*),SUM(pointsFor) FROM games")
-    total,pf=cur.fetchone()
+
+    cur.execute("SELECT COUNT(*),AVG(pointsFor) FROM games")
+    total,avgpf=cur.fetchone()
 
     cur.execute("SELECT COUNT(*) FROM games WHERE result='W'")
     wins=cur.fetchone()[0]
@@ -143,13 +169,24 @@ def stats():
     cur.execute("SELECT COUNT(*) FROM games WHERE result='L'")
     losses=cur.fetchone()[0]
 
+    cur.execute("""
+    SELECT team,opponent,pointsFor FROM games
+    ORDER BY pointsFor DESC LIMIT 1
+    """)
+    h=cur.fetchone()
+
     cur.close()
 
     return jsonify({
         "totalGames":total,
         "wins":wins,
         "losses":losses,
-        "avgPF":(pf/total) if total else 0
+        "avgPF":float(avgpf or 0),
+        "highPFGame":{
+            "team":h[0],
+            "opponent":h[1],
+            "pointsFor":h[2]
+        } if h else None
     })
 
 if __name__=="__main__":
