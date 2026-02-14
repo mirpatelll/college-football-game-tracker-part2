@@ -19,7 +19,7 @@ def get_games():
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, week, team, opponent, pointsfor, pointsagainst, imageurl
+        SELECT id, week, team, opponent, pointsfor, pointsagainst, imageurl, home_away
         FROM games
         ORDER BY week
     """)
@@ -35,7 +35,8 @@ def get_games():
             "opponent": r[3],
             "team_score": r[4],
             "opponent_score": r[5],
-            "image_url": r[6]
+            "image_url": r[6],
+            "home_away": r[7]
         })
 
     cur.close()
@@ -55,15 +56,16 @@ def add_game():
     pf = d.get("team_score")
     pa = d.get("opponent_score")
     image = d.get("image_url", "")
+    home_away = d.get("home_away")
 
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO games(team, opponent, week, pointsfor, pointsagainst, imageurl)
-        VALUES (%s,%s,%s,%s,%s,%s)
+        INSERT INTO games(team, opponent, week, pointsfor, pointsagainst, imageurl, home_away)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
-    """, (team, opponent, week, pf, pa, image))
+    """, (team, opponent, week, pf, pa, image, home_away))
 
     gid = cur.fetchone()[0]
 
@@ -85,6 +87,7 @@ def update_game(gid):
     pf = d.get("team_score")
     pa = d.get("opponent_score")
     image = d.get("image_url", "")
+    home_away = d.get("home_away")
 
     conn = get_db()
     cur = conn.cursor()
@@ -96,9 +99,10 @@ def update_game(gid):
             week=%s,
             pointsfor=%s,
             pointsagainst=%s,
-            imageurl=%s
+            imageurl=%s,
+            home_away=%s
         WHERE id=%s
-    """, (team, opponent, week, pf, pa, image, gid))
+    """, (team, opponent, week, pf, pa, image, home_away, gid))
 
     conn.commit()
     cur.close()
