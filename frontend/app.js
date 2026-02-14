@@ -6,7 +6,7 @@ let pageSize = Number(getCookie("pageSize")) || 10;
 let search = "";
 let editingId = null;
 
-/* Conference Logos */
+/* Logos */
 const CONF_LOGOS = {
   ACC: "logos/acc.png",
   SEC: "logos/sec.png",
@@ -34,9 +34,8 @@ const TEAM_CONF = {
   "USC":"PAC12"
 };
 
-function getConferenceLogo(team){
-  const conf = TEAM_CONF[team] || "NCAA";
-  return CONF_LOGOS[conf];
+function getLogo(team){
+  return CONF_LOGOS[TEAM_CONF[team]] || CONF_LOGOS.NCAA;
 }
 
 /* DOM */
@@ -54,7 +53,7 @@ const statWL = document.getElementById("statWL");
 const statAvg = document.getElementById("statAvgPF");
 const statHigh = document.getElementById("statHighPF");
 
-/* Page size */
+/* Page Size */
 document.querySelector(".tools").insertAdjacentHTML("beforeend",`
 <select id="pageSizeSelect" class="input">
 <option>5</option>
@@ -63,8 +62,8 @@ document.querySelector(".tools").insertAdjacentHTML("beforeend",`
 <option>50</option>
 </select>`);
 
-const pageSizeSelect = document.getElementById("pageSizeSelect");
-pageSizeSelect.value = pageSize;
+const pageSizeSelect=document.getElementById("pageSizeSelect");
+pageSizeSelect.value=pageSize;
 
 /* Cookies */
 function setCookie(n,v){document.cookie=`${n}=${v};path=/`;}
@@ -72,23 +71,23 @@ function getCookie(n){
  return document.cookie.split("; ").find(r=>r.startsWith(n+"="))?.split("=")[1];
 }
 
-/* Normalize backend */
+/* Normalize */
 function normalizeGame(g){
  return {
   id:g.id,
   week:Number(g.week),
   team:g.team,
   opponent:g.opponent,
-  pf:Number(g.team_score || g.pointsfor || 0),
-  pa:Number(g.opponent_score || g.pointsagainst || 0)
+  pf:Number(g.team_score||0),
+  pa:Number(g.opponent_score||0)
  };
 }
 
 /* Load */
 async function loadAllGames(){
- const res=await fetch(`${API}/games`);
- const data=await res.json();
- allGames=data.items.map(normalizeGame);
+ const r=await fetch(`${API}/games`);
+ const d=await r.json();
+ allGames=d.items.map(normalizeGame);
  render();
  updateStats();
 }
@@ -109,30 +108,34 @@ function render(){
  games.sort((a,b)=>a.week-b.week);
 
  const totalPages=Math.max(1,Math.ceil(games.length/pageSize));
- if(page>totalPages) page=totalPages;
-
- const slice=games.slice((page-1)*pageSize,page*pageSize);
+ if(page>totalPages)page=totalPages;
 
  tbody.innerHTML="";
 
- slice.forEach(g=>{
+ games.slice((page-1)*pageSize,page*pageSize).forEach(g=>{
   tbody.innerHTML+=`
 <tr>
 <td>${g.week}</td>
 
 <td>
-<img src="${getConferenceLogo(g.team)}" width="45">
-<br>${g.team}
+<img src="${getLogo(g.team)}" width="40"><br>${g.team}
 </td>
 
 <td>
-<img src="${getConferenceLogo(g.opponent)}" width="45">
-<br>${g.opponent}
+<img src="${getLogo(g.opponent)}" width="40"><br>${g.opponent}
 </td>
+
+<td>-</td>
 
 <td>${g.pf}</td>
 <td>${g.pa}</td>
+
 <td>${g.pf>g.pa?"W":"L"}</td>
+
+<td>
+<button onclick="editGame(${g.id})">Edit</button>
+<button onclick="delGame(${g.id})">Delete</button>
+</td>
 </tr>`;
  });
 
@@ -142,16 +145,23 @@ function render(){
 
 /* Stats */
 function updateStats(){
- const total=allGames.length;
- const wins=allGames.filter(g=>g.pf>g.pa).length;
- const avg=(allGames.reduce((a,b)=>a+b.pf,0)/Math.max(1,total)).toFixed(1);
+ const t=allGames.length;
+ const w=allGames.filter(g=>g.pf>g.pa).length;
+ const avg=(allGames.reduce((a,b)=>a+b.pf,0)/Math.max(1,t)).toFixed(1);
  const high=allGames.reduce((m,g)=>g.pf>m.pf?g:m,{pf:-1});
 
- statTotal.innerText=total;
- statWL.innerText=`${wins}/${total-wins}`;
+ statTotal.innerText=t;
+ statWL.innerText=`${w}/${t-w}`;
  statAvg.innerText=avg;
  statHigh.innerText=high.team?`${high.team} (${high.pf})`:"—";
 }
+
+/* Delete */
+window.delGame=async id=>{
+ if(!confirm("Delete?"))return;
+ await fetch(`${API}/games/${id}`,{method:"DELETE"});
+ loadAllGames();
+};
 
 /* Edit */
 window.editGame=id=>{
@@ -165,7 +175,7 @@ window.editGame=id=>{
  switchView("formView");
 };
 
-/* Save (FIXED FIELD NAMES) */
+/* Save */
 form.addEventListener("submit",async e=>{
  e.preventDefault();
 
@@ -173,8 +183,8 @@ form.addEventListener("submit",async e=>{
   team:team.value,
   opponent:opponent.value,
   week:Number(week.value),
-  team_score:Number(pointsFor.value),      // FIXED
-  opponent_score:Number(pointsAgainst.value) // FIXED
+  team_score:Number(pointsFor.value),
+  opponent_score:Number(pointsAgainst.value)
  };
 
  const url=editingId?`${API}/games/${editingId}`:`${API}/games`;
@@ -200,9 +210,7 @@ filterResult.onchange=()=>{page=1;render();};
 pageSizeSelect.onchange=e=>{pageSize=Number(e.target.value);page=1;render();};
 
 /* Tabs */
-document.querySelectorAll(".tab").forEach(b=>{
- b.onclick=()=>switchView(b.dataset.view);
-});
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchView(b.dataset.view));
 function switchView(id){
  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
  document.getElementById(id).classList.add("active");
