@@ -8,7 +8,41 @@ let sortField = "week";
 let sortDir = "asc";
 let editingId = null;
 
-const PLACEHOLDER = "https://via.placeholder.com/80x50?text=Game";
+/* Conference Logos */
+const CONF_LOGOS = {
+  ACC: "acc.png",
+  SEC: "sec.png",
+  B1G: "b1g.png",
+  BIG12: "big12.png",
+  PAC12: "pac12.png",
+  NCAA: "ncaa.png"
+};
+
+/* Team → Conference Mapping */
+const TEAM_CONF = {
+  "Clemson": "ACC",
+  "Florida State": "ACC",
+  "Virginia Tech": "ACC",
+
+  "Georgia": "SEC",
+  "LSU": "SEC",
+  "Alabama": "SEC",
+
+  "Michigan": "B1G",
+  "Ohio State": "B1G",
+
+  "Texas": "BIG12",
+
+  "Oregon": "PAC12",
+  "USC": "PAC12"
+};
+
+function getConferenceLogo(team) {
+  const conf = TEAM_CONF[team] || "NCAA";
+  return CONF_LOGOS[conf] || CONF_LOGOS["NCAA"];
+}
+
+const PLACEHOLDER = "ncaa.png";
 
 /* DOM */
 const tbody = document.getElementById("gamesTbody");
@@ -57,8 +91,7 @@ function normalizeGame(g) {
     team: g.team,
     opponent: g.opponent,
     pf: Number(g.pointsfor || g.team_score || 0),
-    pa: Number(g.pointsagainst || g.opponent_score || 0),
-    image: g.imageurl || g.image_url || PLACEHOLDER
+    pa: Number(g.pointsagainst || g.opponent_score || 0)
   };
 }
 
@@ -77,11 +110,16 @@ function render() {
 
   if (search) {
     const s = search.toLowerCase();
-    games = games.filter(g => g.team.toLowerCase().includes(s) || g.opponent.toLowerCase().includes(s));
+    games = games.filter(g =>
+      g.team.toLowerCase().includes(s) ||
+      g.opponent.toLowerCase().includes(s)
+    );
   }
 
   if (filterResult.value !== "ALL") {
-    games = games.filter(g => (g.pf > g.pa ? "W" : "L") === filterResult.value);
+    games = games.filter(g =>
+      (g.pf > g.pa ? "W" : "L") === filterResult.value
+    );
   }
 
   games.sort((a,b)=>a.week-b.week);
@@ -95,10 +133,15 @@ function render() {
   tbody.innerHTML="";
 
   slice.forEach(g=>{
+    const logo = getConferenceLogo(g.team);
+
     tbody.innerHTML+=`
 <tr>
 <td>${g.week}</td>
-<td><img src="${g.image}" width="60" onerror="this.src='${PLACEHOLDER}'"><br>${g.team}</td>
+<td>
+<img src="${logo}" width="60" onerror="this.src='${CONF_LOGOS.NCAA}'">
+<br>${g.team}
+</td>
 <td>${g.opponent}</td>
 <td>${g.pf}</td>
 <td>${g.pa}</td>
@@ -156,7 +199,7 @@ form.addEventListener("submit",async e=>{
  week:Number(week.value),
  teamScore:Number(pointsFor.value),
  opponentScore:Number(pointsAgainst.value),
- imageUrl:PLACEHOLDER
+ imageUrl:CONF_LOGOS[getConferenceLogo(team.value)] || CONF_LOGOS.NCAA
  };
 
  const url=editingId?`${API}/games/${editingId}`:`${API}/games`;
