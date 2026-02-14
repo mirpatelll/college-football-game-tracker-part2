@@ -8,13 +8,14 @@ let editingId = null;
 
 /* Conference Logos (LOCAL FILES) */
 const CONF_LOGOS = {
-  ACC: "/logos/acc.png",
-  SEC: "/logos/sec.png",
-  B1G: "/logos/b1g.png",
-  BIG12: "/logos/big12.png",
-  PAC12: "/logos/pac12.png",
-  NCAA: "/logos/ncaa.png"
+  ACC: "logos/acc.png",
+  SEC: "logos/sec.png",
+  B1G: "logos/b1g.png",
+  BIG12: "logos/big12.png",
+  PAC12: "logos/pac12.png",
+  NCAA: "logos/ncaa.png"
 };
+
 
 /* Team → Conference */
 const TEAM_CONF = {
