@@ -1,128 +1,94 @@
-College Football Game Tracker (Cloud Version)
+# 🏈 College Football Game Tracker — Solo Project 3
 
-This project is a full-stack client/server web application for tracking college football games.
-It uses a cloud-hosted Flask REST API with a PostgreSQL database and a static frontend deployed separately.
+Production-ready Collection Manager application built for CPSC 3750. This project allows users to create, view, edit, delete, and analyze college football games using a full client/server architecture with a PostgreSQL database.
 
-Live Application
+The application is deployed publicly with a custom domain and supports full CRUD functionality.
+
+---
+
+## 🔗 Live Application
 
 Frontend (Netlify):
+
 https://collegegametracker.netlify.app
 
 Backend API (Render):
+
 https://college-football-game-tracker-part2-1.onrender.com
 
-Domain Name + Registrar
+---
 
-No custom domain is used.
+## 🧱 Tech Stack
 
-Frontend domain is provided by Netlify.
-Backend domain is provided by Render.
+### Frontend
+- HTML  
+- CSS  
+- Vanilla JavaScript  
+- Hosted on **Netlify**
 
-Both platforms automatically generate secure HTTPS URLs.
+### Backend
+- Python  
+- Flask  
+- Flask-CORS  
+- Hosted on **Render**
 
-Tech Stack
+### Database
+- PostgreSQL  
+- Hosted on **Render**
 
-Frontend:
-HTML
-CSS
-JavaScript
-Hosted on Netlify
+---
 
-Backend:
-Python
-Flask
-psycopg2 (PostgreSQL driver)
-Hosted on Render
+## 🌐 Domain + Registrar
 
-Database:
-PostgreSQL 18
-Hosted on Render (Managed PostgreSQL instance)
+- Domain Provider: **Netlify**
+- Custom domain connected directly through Netlify DNS
 
-Database & Persistence
+---
 
-Game data is stored in a PostgreSQL database hosted on Render.
+## ☁ Hosting Providers
 
-How persistence works:
+| Layer | Provider |
+|------|----------|
+| Frontend | Netlify |
+| Backend API | Render |
+| Database | Render PostgreSQL |
 
-When the server starts, Flask connects to Render’s PostgreSQL database using an environment variable.
+---
 
-A games table is automatically created if it does not exist.
+## 🗄 Database
 
-If the table is empty, 30 starter games are automatically seeded.
+- Type: **PostgreSQL**
+- Hosted on: **Render**
+- Tables:
+  - `games`
 
-All create, read, and delete operations directly modify the PostgreSQL database.
+Each game record stores:
 
-Data persists across deployments and server restarts.
+- id  
+- team  
+- opponent  
+- week  
+- pointsfor  
+- pointsagainst  
+- result  
+- imageurl  
 
-Configuration & Secrets Management
+Seed data (30+ games) is inserted on initial deployment.
 
-Sensitive configuration values are stored as environment variables on Render.
+---
 
-Example:
+## 🔐 Environment Variables
+
+Secrets and configuration values are stored using environment variables (never hardcoded).
+
+### Backend (Render):
 
 DATABASE_URL
 
-This variable contains the PostgreSQL connection string and is never committed to GitHub.
+This contains the PostgreSQL connection string automatically provided by Render.
 
-Render injects this variable automatically at runtime.
+Flask reads this value using:
 
-The Flask app reads it using:
-
+```python
 os.environ.get("DATABASE_URL")
-
-No secrets are stored in source control.
-
-Hosting Providers
-
-Frontend: Netlify
-Backend API: Render Web Service
-Database: Render PostgreSQL
-
-How to Deploy and Update the App
-
-Backend (Render):
-
-Make changes locally
-
-Commit and push to GitHub:
-
-git add .
-git commit -m "Update backend"
-git push
-
-Go to the Render dashboard
-
-Select the backend service
-
-Click:
-
-Manual Deploy → Deploy latest
-
-Render automatically rebuilds and redeploys the Flask server.
-
-Frontend (Netlify):
-
-Update frontend files locally
-
-Push changes to GitHub
-
-Netlify automatically redeploys the site
-
-Features
-
-View all games with pagination
-Add games
-Delete games
-Search by team or opponent
-Filter by result
-Statistics dashboard
-Persistent PostgreSQL storage
-Automatic seeding of 30 starter games
-
-API Endpoints
-
-GET /api/games
-POST /api/games
-DELETE /api/games/<id>
-GET /api/stats
 
