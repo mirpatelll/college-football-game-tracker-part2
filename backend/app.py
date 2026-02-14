@@ -19,7 +19,9 @@ def get_games():
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, week, team, opponent, pointsfor, pointsagainst, imageurl, home_away
+        SELECT id, week, team, opponent,
+               pointsfor, pointsagainst,
+               imageurl, home_away
         FROM games
         ORDER BY week
     """)
@@ -50,22 +52,26 @@ def get_games():
 def add_game():
     d = request.json
 
-    team = d.get("team")
-    opponent = d.get("opponent")
-    week = d.get("week")
-    pf = d.get("team_score")
-    pa = d.get("opponent_score")
-    image = d.get("image_url", "")
-    home_away = d.get("home_away")
-
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO games(team, opponent, week, pointsfor, pointsagainst, imageurl, home_away)
+        INSERT INTO games(
+            team, opponent, week,
+            pointsfor, pointsagainst,
+            imageurl, home_away
+        )
         VALUES (%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
-    """, (team, opponent, week, pf, pa, image, home_away))
+    """, (
+        d.get("team"),
+        d.get("opponent"),
+        d.get("week"),
+        d.get("team_score"),
+        d.get("opponent_score"),
+        d.get("image_url",""),
+        d.get("home_away","")
+    ))
 
     gid = cur.fetchone()[0]
 
@@ -81,14 +87,6 @@ def add_game():
 def update_game(gid):
     d = request.json
 
-    team = d.get("team")
-    opponent = d.get("opponent")
-    week = d.get("week")
-    pf = d.get("team_score")
-    pa = d.get("opponent_score")
-    image = d.get("image_url", "")
-    home_away = d.get("home_away")
-
     conn = get_db()
     cur = conn.cursor()
 
@@ -102,7 +100,16 @@ def update_game(gid):
             imageurl=%s,
             home_away=%s
         WHERE id=%s
-    """, (team, opponent, week, pf, pa, image, home_away, gid))
+    """, (
+        d.get("team"),
+        d.get("opponent"),
+        d.get("week"),
+        d.get("team_score"),
+        d.get("opponent_score"),
+        d.get("image_url",""),
+        d.get("home_away",""),
+        gid
+    ))
 
     conn.commit()
     cur.close()
@@ -118,14 +125,13 @@ def delete_game(gid):
     cur = conn.cursor()
 
     cur.execute("DELETE FROM games WHERE id=%s", (gid,))
-
     conn.commit()
+
     cur.close()
     conn.close()
 
     return jsonify({"status": "deleted"})
 
-# ---------------- MAIN ----------------
-
 if __name__ == "__main__":
     app.run()
+
