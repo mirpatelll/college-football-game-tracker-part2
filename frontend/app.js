@@ -20,18 +20,14 @@ const TEAM_CONF = {
   "Clemson":"ACC",
   "Florida State":"ACC",
   "Virginia Tech":"ACC",
-
   "Georgia":"SEC",
   "LSU":"SEC",
   "Alabama":"SEC",
-
   "Michigan":"B1G",
   "Ohio State":"B1G",
-
-  "Texas":"BIG12",
-
-  "Oregon":"PAC12",
-  "USC":"PAC12"
+  "Texas":"SEC",
+  "Oregon":"B1G",
+  "USC":"B1G"
 };
 
 function getLogo(team){
@@ -39,19 +35,19 @@ function getLogo(team){
 }
 
 /* DOM */
-const tbody = document.getElementById("gamesTbody");
-const pageLabel = document.getElementById("pageLabel");
-const searchInput = document.getElementById("searchInput");
-const filterResult = document.getElementById("filterResult");
-const prevBtn = document.getElementById("prevPageBtn");
-const nextBtn = document.getElementById("nextPageBtn");
-const form = document.getElementById("gameForm");
+const tbody=document.getElementById("gamesTbody");
+const pageLabel=document.getElementById("pageLabel");
+const searchInput=document.getElementById("searchInput");
+const filterResult=document.getElementById("filterResult");
+const prevBtn=document.getElementById("prevPageBtn");
+const nextBtn=document.getElementById("nextPageBtn");
+const form=document.getElementById("gameForm");
 
 /* Stats */
-const statTotal = document.getElementById("statTotalGames");
-const statWL = document.getElementById("statWL");
-const statAvg = document.getElementById("statAvgPF");
-const statHigh = document.getElementById("statHighPF");
+const statTotal=document.getElementById("statTotalGames");
+const statWL=document.getElementById("statWL");
+const statAvg=document.getElementById("statAvgPF");
+const statHigh=document.getElementById("statHighPF");
 
 /* Page Size */
 document.querySelector(".tools").insertAdjacentHTML("beforeend",`
@@ -78,6 +74,7 @@ function normalizeGame(g){
   week:Number(g.week),
   team:g.team,
   opponent:g.opponent,
+  ha:g.home_away || "-",
   pf:Number(g.team_score||0),
   pa:Number(g.opponent_score||0)
  };
@@ -107,9 +104,6 @@ function render(){
 
  games.sort((a,b)=>a.week-b.week);
 
- const totalPages=Math.max(1,Math.ceil(games.length/pageSize));
- if(page>totalPages)page=totalPages;
-
  tbody.innerHTML="";
 
  games.slice((page-1)*pageSize,page*pageSize).forEach(g=>{
@@ -117,15 +111,11 @@ function render(){
 <tr>
 <td>${g.week}</td>
 
-<td>
-<img src="${getLogo(g.team)}" width="40"><br>${g.team}
-</td>
+<td><img src="${getLogo(g.team)}" width="40"><br>${g.team}</td>
 
-<td>
-<img src="${getLogo(g.opponent)}" width="40"><br>${g.opponent}
-</td>
+<td><img src="${getLogo(g.opponent)}" width="40"><br>${g.opponent}</td>
 
-<td>-</td>
+<td>${g.ha}</td>
 
 <td>${g.pf}</td>
 <td>${g.pa}</td>
@@ -139,7 +129,7 @@ function render(){
 </tr>`;
  });
 
- pageLabel.innerText=`Page ${page} of ${totalPages}`;
+ pageLabel.innerText=`Page ${page}`;
  setCookie("pageSize",pageSize);
 }
 
@@ -172,6 +162,7 @@ window.editGame=id=>{
  week.value=g.week;
  pointsFor.value=g.pf;
  pointsAgainst.value=g.pa;
+ homeAway.value=g.ha;
  switchView("formView");
 };
 
@@ -184,7 +175,8 @@ form.addEventListener("submit",async e=>{
   opponent:opponent.value,
   week:Number(week.value),
   team_score:Number(pointsFor.value),
-  opponent_score:Number(pointsAgainst.value)
+  opponent_score:Number(pointsAgainst.value),
+  home_away:homeAway.value
  };
 
  const url=editingId?`${API}/games/${editingId}`:`${API}/games`;
