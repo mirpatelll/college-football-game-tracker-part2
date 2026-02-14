@@ -6,7 +6,7 @@ let pageSize = Number(getCookie("pageSize")) || 10;
 let search = "";
 let editingId = null;
 
-/* Conference Logos (LOCAL FILES) */
+/* Conference Logos */
 const CONF_LOGOS = {
   ACC: "logos/acc.png",
   SEC: "logos/sec.png",
@@ -16,8 +16,6 @@ const CONF_LOGOS = {
   NCAA: "logos/ncaa.png"
 };
 
-
-/* Team → Conference */
 const TEAM_CONF = {
   "Clemson":"ACC",
   "Florida State":"ACC",
@@ -81,8 +79,8 @@ function normalizeGame(g){
   week:Number(g.week),
   team:g.team,
   opponent:g.opponent,
-  pf:Number(g.pointsfor||g.team_score||0),
-  pa:Number(g.pointsagainst||g.opponent_score||0)
+  pf:Number(g.team_score || g.pointsfor || 0),
+  pa:Number(g.opponent_score || g.pointsagainst || 0)
  };
 }
 
@@ -135,11 +133,6 @@ function render(){
 <td>${g.pf}</td>
 <td>${g.pa}</td>
 <td>${g.pf>g.pa?"W":"L"}</td>
-
-<td>
-<button onclick="editGame(${g.id})">Edit</button>
-<button onclick="delGame(${g.id})">Delete</button>
-</td>
 </tr>`;
  });
 
@@ -160,13 +153,6 @@ function updateStats(){
  statHigh.innerText=high.team?`${high.team} (${high.pf})`:"—";
 }
 
-/* Delete */
-window.delGame=async id=>{
- if(!confirm("Delete this game?"))return;
- await fetch(`${API}/games/${id}`,{method:"DELETE"});
- loadAllGames();
-};
-
 /* Edit */
 window.editGame=id=>{
  const g=allGames.find(x=>x.id===id);
@@ -179,7 +165,7 @@ window.editGame=id=>{
  switchView("formView");
 };
 
-/* Save */
+/* Save (FIXED FIELD NAMES) */
 form.addEventListener("submit",async e=>{
  e.preventDefault();
 
@@ -187,8 +173,8 @@ form.addEventListener("submit",async e=>{
   team:team.value,
   opponent:opponent.value,
   week:Number(week.value),
-  teamScore:Number(pointsFor.value),
-  opponentScore:Number(pointsAgainst.value)
+  team_score:Number(pointsFor.value),      // FIXED
+  opponent_score:Number(pointsAgainst.value) // FIXED
  };
 
  const url=editingId?`${API}/games/${editingId}`:`${API}/games`;
