@@ -7,13 +7,24 @@ let search = "";
 let editingId = null;
 
 /* Conference Logos (LOCAL FILES) */
-const CONF_LOGOS = {
-  ACC: "logos/acc.png",
-  SEC: "logos/sec.png",
-  B1G: "logos/b1g.png",
-  BIG12: "logos/big12.png",
-  PAC12: "logos/pac12.png",
-  NCAA: "logos/ncaa.png"
+const TEAM_LOGOS = {
+  "Clemson": "https://a.espncdn.com/i/teamlogos/ncaa/500/228.png",
+  "Georgia": "https://a.espncdn.com/i/teamlogos/ncaa/500/61.png",
+  "Alabama": "https://a.espncdn.com/i/teamlogos/ncaa/500/333.png",
+  "LSU": "https://a.espncdn.com/i/teamlogos/ncaa/500/99.png",
+
+  "Michigan": "https://a.espncdn.com/i/teamlogos/ncaa/500/130.png",
+  "Ohio State": "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+
+  "Texas": "https://a.espncdn.com/i/teamlogos/ncaa/500/251.png",
+
+  "Oregon": "https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png",
+
+  "USC": "https://a.espncdn.com/i/teamlogos/ncaa/500/30.png",
+
+  "Florida State": "https://a.espncdn.com/i/teamlogos/ncaa/500/52.png",
+
+  "Virginia Tech": "https://a.espncdn.com/i/teamlogos/ncaa/500/259.png"
 };
 
 
