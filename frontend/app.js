@@ -29,10 +29,10 @@ const TEAM_CONF = {
   "michigan": "B1G",
   "ohio state": "B1G",
 
-  "texas": "BIG12",
+  "texas": "SEC",
 
-  "oregon": "PAC12",
-  "usc": "PAC12"
+  "oregon": "B1G",
+  "usc": "B1G"
 };
 
 function cleanTeamName(s) {
