@@ -20,7 +20,7 @@ const CONF_LOGOS = {
 const TEAM_CONF = {
   "clemson": "ACC",
   "florida state": "ACC",
-  "virginia tech": "ACC",
+  "Virginia Tech": "ACC",
 
   "georgia": "SEC",
   "lsu": "SEC",
