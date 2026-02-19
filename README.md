@@ -10,7 +10,7 @@ The application is deployed publicly with a custom domain and supports full CRUD
 
 Frontend (Netlify):
 
-https://collegegametracker.netlify.app
+https://collegefootballtracker.online
 
 Backend API (Render):
 
